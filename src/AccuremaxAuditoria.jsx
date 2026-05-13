@@ -128,18 +128,13 @@ function scoreColor(score, max) {
 // ── REPORT VIEW ────────────────────────────────────────────────────────────
 // ── DEMO DATA ─────────────────────────────────────────────────────────────
 const DEMO = {
-  form: { planta: "Frigorífico La Dorada", fecha: "2026-04-29", responsable: "Equipo de Calidad", responsablePlanta: "Carlos Estrada", operario: "José Hernández", equipo: "GP4", canalesTotal: "300", observaciones: "Visita realizada en turno de mañana. Condiciones de planta adecuadas. Se identificaron oportunidades de mejora en técnica de punción." },
-  canalCounts: { B: 168, R: 78, M: 36, I: 18 },
-  equipScores: { 0:"SI",1:"SI",2:"SI",3:"SI",4:"SI",5:"NO",6:"SI",7:"SI",8:"SI",9:"NO",10:"SI" },
-  equipObs: "El equipo se encuentra en adecuado estado de funcionamiento. Se evidencia acumulación de grasa en algunos componentes, con mayor presencia en el pin de la cuchilla, lo que indica deficiencias en los procesos de limpieza posterior a la operación. Adicionalmente, el calibrador patrón continúa dañado y no ha sido reemplazado.",
-  eqScore: "20",
-  eqObs: "Se verificaron los resultados de magro registrados en el sistema. La ecuación aplicada corresponde a la versión vigente establecida para el año 2023.",
-  selectedRecs: [
-    { id: "r6", text: "Limpieza deficiente del equipo: acumulación de grasa en pin u otros residuos en componentes críticos al finalizar la jornada." },
-    { id: "r7", text: "Calibrador patrón ausente o en mal estado: no se dispone del calibrador patrón para la verificación de mediciones." },
-    { id: "r1", text: "Ángulo de punción no perpendicular: el operario realiza la punción con desviación angular respecto al eje longitudinal de la canal." },
-    { id: "r9", text: "Falta de formación técnica específica: el operario asignado no cuenta con capacitación adecuada en el procedimiento o en el uso del equipo." },
-  ],
+  form: { planta: "", fecha: new Date().toISOString().split("T")[0], responsable: "", responsablePlanta: "", operario: "", equipo: "GP4", canalesTotal: "", canalesInclinadas: "", observaciones: "" },
+  canalCounts: { B: 0, R: 0, M: 0, I: 0 },
+  equipScores: {},
+  equipObs: "",
+  eqScore: "",
+  eqObs: "",
+  selectedRecs: [],
   customRec: "",
   photos: [null, null],
 };
@@ -408,8 +403,8 @@ function ReportView({ data, onBack }) {
                 ? `Las categorías "Malo" e "Insuficiente" (${desvPct}%) se asociaron principalmente con errores en la identificación del espacio intercostal, evidenciándose mediciones en ubicaciones incorrectas y dificultades para diferenciar entre costillas verdaderas y falsas.`
                 : `La inspección de canales muestra resultados dentro del rango esperado. El ${bPct}% de las canales fue clasificado como Bueno (B), reflejando una técnica de punción consistente.`}
             </p>
-            {totalCanales > 0 && <p style={{ fontSize: 12, color: Ink, lineHeight: 1.7 }}>
-              {`Durante la inserción del equipo ${form.equipo}, se presentaron inclinaciones en ${Math.round(totalCanales*0.17)} canales (17%), afectando la perpendicularidad y la precisión del procedimiento.`}
+            {totalCanales > 0 && form.canalesInclinadas && <p style={{ fontSize: 12, color: Ink, lineHeight: 1.7 }}>
+              {`Durante la inserción del equipo ${form.equipo}, se presentaron inclinaciones en ${form.canalesInclinadas} canales (${Math.round((Number(form.canalesInclinadas)/totalCanales)*100)}%), afectando la perpendicularidad y la precisión del procedimiento.`}
             </p>}
           </div>
 
@@ -449,9 +444,7 @@ function ReportView({ data, onBack }) {
               <div style={{ fontFamily: "'Nunito',sans-serif", fontSize: 22, fontWeight: 700, color: scoreSt(equipTotal,20).color, lineHeight: 1 }}>{equipTotal}</div>
               <div style={{ fontSize: 10, color: scoreSt(equipTotal,20).color, lineHeight: 1.4 }}>de 20 pts<br/><strong>{Math.round((equipTotal/20)*100)}%</strong></div>
             </div>
-            <p style={{ fontSize: 12, color: Ink, lineHeight: 1.7 }}>
-              {equipObs || "El equipo se encuentra en adecuado estado de funcionamiento. Se evidencia acumulación de grasa en algunos componentes. Se recomienda fortalecer el proceso de limpieza posterior a la operación."}
-            </p>
+            {equipObs && <p style={{ fontSize: 12, color: Ink, lineHeight: 1.7 }}>{equipObs}</p>}
           </div>
         </div>
 
@@ -557,7 +550,7 @@ export default function AccuremaxApp() {
   const [form, setForm] = useState({
     planta: "", fecha: new Date().toISOString().split("T")[0],
     responsable: "", responsablePlanta: "", operario: "",
-    equipo: "GP4", canalesTotal: "", observaciones: "",
+    equipo: "GP4", canalesTotal: "", canalesInclinadas: "", observaciones: "",
   });
   const [canalCounts, setCanalCounts] = useState({ B: 0, R: 0, M: 0, I: 0 });
   const [equipScores, setEquipScores] = useState({});
@@ -712,6 +705,13 @@ export default function AccuremaxApp() {
                   </div>
                 </div>
               )}
+            </SectionCard>
+
+            <SectionCard number="02b" title="Canales con inclinación" subtitle="Número de canales donde se presentó inclinación del equipo">
+              <div style={{ maxWidth: 260 }}>
+                <Label>Canales inclinadas (cantidad)</Label>
+                <Input type="number" min="0" placeholder="Ej. 51" value={form.canalesInclinadas} onChange={e => set("canalesInclinadas", e.target.value)} />
+              </div>
             </SectionCard>
 
             {/* 03 EQUIPO */}
