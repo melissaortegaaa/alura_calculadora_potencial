@@ -157,6 +157,7 @@ const DEMO = {
   selectedRecs: [],
   customRec: "",
   photos: [null, null],
+  photoLabels: ["", ""],
 };
 
 // ── RADIAL GAUGE (SVG) ────────────────────────────────────────────────────
@@ -208,7 +209,7 @@ function ReportView({ data, onBack }) {
   const totalCanalReal = Object.values(data.canalCounts).reduce((a, b) => a + b, 0);
   const hasRealData = !!(data.form.planta || totalCanalReal > 0 || data.eqScore !== "" || Object.keys(data.equipScores).length > 0);
   const merged = hasRealData ? data : { ...data, ...DEMO, form: { ...DEMO.form, ...Object.fromEntries(Object.entries(data.form).filter(([,v]) => v)) } };
-  const { form, equipScores, equipObs, eqScore, eqObs, photos, selectedRecs, customRec, canalCounts, equipRows, selectedConcls = [] } = merged;
+  const { form, equipScores, equipObs, eqScore, eqObs, photos, selectedRecs, customRec, canalCounts, equipRows, selectedConcls = [], photoLabels = ["", ""] } = merged;
 
   const equipTotal = equipRows.reduce((acc, row, i) => {
     const ans = equipScores[i];
@@ -257,163 +258,205 @@ function ReportView({ data, onBack }) {
   const handlePDF = async () => {
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const W = 210, H = 297, mg = 16, cW = W - mg * 2;
-    const BR = [153,57,53], BRD = [122,44,42], INK = [44,42,40], MUT = [139,139,141];
-    const GRN = [46,125,82], AMB = [133,79,11], SND = [245,242,238], WHT = [255,255,255];
-    const scoreColor = (s, m) => { const p = m>0?(s/m)*100:0; return p>=80?GRN:p>=50?AMB:BR; };
-    const scoreLabel = (s, m) => { const p = m>0?(s/m)*100:0; return p>=80?"Adecuado":p>=50?"Regular":"Deficiente"; };
-    const addPageHeader = (title) => {
-      doc.setFillColor(...BR); doc.rect(0,0,W,14,"F");
-      doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(...WHT);
-      doc.text("ALURA · Science for Life · Informe de auditoría", mg, 9);
-      doc.text(form.planta||"", W-mg, 9, { align:"right" });
-      doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(...INK);
-      doc.text(title, mg, 26);
-      doc.setFillColor(...BR); doc.rect(mg, 29, 28, 0.8, "F");
-    };
-    doc.setFillColor(...BR); doc.rect(0,0,W,H,"F");
-    doc.setFillColor(...BRD); doc.triangle(W,H*0.55,W,H,W*0.35,H,"F");
-    try {
-      const logoB64 = await loadImgBase64("/Asset 63@3x.png");
-      doc.addImage(logoB64,"PNG",mg,mg,44,18,"","FAST");
-    } catch {
-      doc.setFont("helvetica","bold"); doc.setFontSize(22); doc.setTextColor(...WHT);
-      doc.text("ALURA",mg,mg+12);
-    }
-    doc.setDrawColor(...WHT,0.4); doc.setLineWidth(0.3);
-    doc.roundedRect(W-mg-58,mg,58,8,2,2,"D");
-    doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(...WHT);
-    doc.text("USO CONFIDENCIAL · INTERNO ALURA",W-mg-29,mg+5,{align:"center"});
-    doc.setDrawColor(255,255,255,0.2); doc.setLineWidth(0.4);
-    doc.line(mg,70,W-mg,70);
-    doc.setFont("helvetica","bold"); doc.setFontSize(30); doc.setTextColor(...WHT);
-    doc.text("Informe de",mg,84); doc.text("auditoría",mg,96);
-    doc.setFont("helvetica","normal"); doc.setFontSize(13); doc.setTextColor(255,255,255,0.65);
-    doc.text("Medición de magro en canales porcinas",mg,107);
-    const infoGrid = [
-      ["Planta",form.planta||"—"],["Fecha",form.fecha||"—"],
-      ["Auditor",form.responsable||"—"],["Responsable planta",form.responsablePlanta||"—"],
-      ["Operario",form.operario||"—"],["Equipo",form.equipo||"—"],
-    ];
-    let gy=122;
-    infoGrid.forEach(([lbl,val],i)=>{
-      const col=i%2, row=Math.floor(i/2);
-      const gx=mg+col*(cW/2+4), gyy=gy+row*18;
-      doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(255,255,255,0.45);
-      doc.text(lbl.toUpperCase(),gx,gyy);
-      doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(...WHT);
-      doc.text(String(val),gx,gyy+6);
+    const W = 210, H = 297, mg = 13, cW = W - mg * 2;
+    const BR=[153,57,53], INK=[44,42,40], MUT=[139,139,141];
+    const GRN=[46,125,82], AMB=[133,79,11], SND=[245,242,238], WHT=[255,255,255];
+    const sCol = (s,m) => { const p=m>0?(s/m)*100:0; return p>=80?GRN:p>=50?AMB:BR; };
+    const sLbl = (s,m) => { const p=m>0?(s/m)*100:0; return p>=80?"Adecuado":p>=50?"Regular":"Deficiente"; };
+    let y = 0;
+
+    // HEADER BAR
+    doc.setFillColor(...BR); doc.rect(0,0,W,11,"F");
+    try { const lb=await loadImgBase64("/Asset 63@3x.png"); doc.addImage(lb,"PNG",mg,1.5,30,7,"","FAST"); }
+    catch { doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(...WHT); doc.text("ALURA",mg,8); }
+    doc.setFont("helvetica","normal"); doc.setFontSize(6); doc.setTextColor(...WHT);
+    doc.text("USO CONFIDENCIAL · INTERNO ALURA", W-mg, 5, {align:"right"});
+    doc.text(`${form.planta||""}  ·  ${form.fecha||""}`, W-mg, 9, {align:"right"});
+    y = 15;
+
+    // TITLE + SCORE BADGE
+    const sc = sCol(totalScore,100);
+    doc.setFillColor(...sc); doc.roundedRect(W-mg-34, y-2, 34, 15, 2, 2, "F");
+    doc.setFont("helvetica","bold"); doc.setFontSize(17); doc.setTextColor(...WHT);
+    doc.text(`${totalScore}`, W-mg-17, y+7, {align:"center"});
+    doc.setFont("helvetica","normal"); doc.setFontSize(6); doc.setTextColor(255,255,255,0.85);
+    doc.text(`/ 100 · ${sLbl(totalScore,100)}`, W-mg-17, y+11, {align:"center"});
+    doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(...INK);
+    doc.text("Informe de auditoría", mg, y+6);
+    doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUT);
+    doc.text("Medición de magro en canales porcinas", mg, y+11);
+    y += 17;
+
+    // INFO GRID (2 rows x 3 cols)
+    doc.setDrawColor(226,217,208); doc.setLineWidth(0.3); doc.line(mg,y,W-mg,y); y+=4;
+    const infoItems=[["Planta",form.planta||"—"],["Auditor",form.responsable||"—"],["Equipo",form.equipo||"—"],
+      ["Fecha",form.fecha||"—"],["Resp. planta",form.responsablePlanta||"—"],["Operario",form.operario||"—"]];
+    const colW2 = cW/3;
+    infoItems.forEach(([lbl,val],i)=>{
+      const cx=mg+(i%3)*colW2, iy=y+(Math.floor(i/3))*9;
+      doc.setFont("helvetica","normal"); doc.setFontSize(5.5); doc.setTextColor(...MUT);
+      doc.text(lbl.toUpperCase(), cx, iy);
+      doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(...INK);
+      doc.text(String(val).slice(0,28), cx, iy+4);
     });
-    const sy=H-62;
-    doc.setFillColor(255,255,255,0.1); doc.roundedRect(mg,sy,cW,44,5,5,"F");
-    doc.setDrawColor(255,255,255,0.2); doc.setLineWidth(0.4); doc.roundedRect(mg,sy,cW,44,5,5,"D");
-    doc.setFont("helvetica","bold"); doc.setFontSize(46); doc.setTextColor(...WHT);
-    doc.text(`${totalScore}`,mg+28,sy+28,{align:"center"});
-    doc.setFontSize(13); doc.setTextColor(255,255,255,0.6); doc.text("/ 100 pts",mg+44,sy+28);
-    doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(255,255,255,0.55);
-    doc.text(`Cumplimiento general: ${totalPct}% · ${scoreLabel(totalScore,100)}`,mg+28,sy+37,{align:"center"});
-    doc.text(new Date().toLocaleDateString("es-CO",{year:"numeric",month:"long",day:"numeric"}),W-mg,sy+37,{align:"right"});
-    doc.addPage(); addPageHeader("Resumen de resultados");
-    let y=36;
-    const cards=[
-      {label:"A. Inspección de canales",score:canalScore,max:60},
-      {label:"B. Verificación de la ecuación",score:eqScore!==""?Number(eqScore):0,max:20},
-      {label:"C. Estado físico del equipo",score:equipTotal,max:20},
+    y += 20;
+
+    // KPI CARDS A / B / C
+    doc.setDrawColor(226,217,208); doc.line(mg,y,W-mg,y); y+=4;
+    const pdfCards=[
+      {lbl:"A. Inspección de canales", score:canalScore, max:60},
+      {lbl:"B. Verificación de la ecuación", score:eqScore!==""?eqNum:0, max:20},
+      {lbl:"C. Estado físico del equipo", score:equipTotal, max:20},
     ];
-    const cw3=(cW-8)/3;
-    cards.forEach((c,i)=>{
-      const cx=mg+i*(cw3+4);
+    const cw3p=(cW-4)/3;
+    pdfCards.forEach((c,i)=>{
+      const cx=mg+i*(cw3p+2);
       const pct=c.max>0?Math.round((c.score/c.max)*100):0;
-      const col=scoreColor(c.score,c.max);
-      doc.setFillColor(...SND); doc.roundedRect(cx,y,cw3,36,3,3,"F");
-      doc.setDrawColor(...col,0.4); doc.setLineWidth(0.5); doc.roundedRect(cx,y,cw3,36,3,3,"D");
-      const lblLines=doc.splitTextToSize(c.label,cw3-6);
-      doc.setFont("helvetica","bold"); doc.setFontSize(6.5); doc.setTextColor(...MUT); doc.text(lblLines,cx+4,y+7);
-      doc.setFont("helvetica","bold"); doc.setFontSize(20); doc.setTextColor(...col); doc.text(String(c.score),cx+4,y+23);
-      doc.setFontSize(8); doc.setTextColor(...MUT); doc.text(`/ ${c.max} pts`,cx+4+doc.getTextWidth(String(c.score))+1,y+23);
-      doc.setFillColor(226,217,208); doc.roundedRect(cx+4,y+27,cw3-8,3,1,1,"F");
-      if(pct>0){doc.setFillColor(...col); doc.roundedRect(cx+4,y+27,(cw3-8)*pct/100,3,1,1,"F");}
-      doc.setFont("helvetica","bold"); doc.setFontSize(7); doc.setTextColor(...col); doc.text(`${pct}%`,cx+cw3-4,y+30,{align:"right"});
-    });
-    y+=46;
-    doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...INK); doc.text("Distribución de canales",mg,y); y+=7;
-    const canalItems=[{lbl:"Buena (B)",cnt:canalCounts.B,col:GRN},{lbl:"Regular (R)",cnt:canalCounts.R,col:AMB},{lbl:"Mala (M)",cnt:canalCounts.M,col:BR},{lbl:"Insuficiente (I)",cnt:canalCounts.I,col:[136,135,128]}];
-    const bMaxW=cW-52, maxCnt=Math.max(...canalItems.map(d=>d.cnt),1);
-    canalItems.forEach(d=>{
-      const pct2=totalCanales>0?Math.round((d.cnt/totalCanales)*100):0;
-      const bW=(d.cnt/maxCnt)*bMaxW;
-      doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(...INK); doc.text(d.lbl,mg,y+5);
-      doc.setFillColor(226,217,208); doc.roundedRect(mg+38,y,bMaxW,6,1,1,"F");
-      if(d.cnt>0){doc.setFillColor(...d.col); doc.roundedRect(mg+38,y,bW,6,1,1,"F");}
-      doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(...d.col); doc.text(`${d.cnt}  (${pct2}%)`,mg+38+bMaxW+3,y+5);
-      y+=12;
-    });
-    if(form.canalObs){y+=3;doc.setFillColor(245,234,234);doc.roundedRect(mg,y,cW,18,3,3,"F");doc.setFont("helvetica","bold");doc.setFontSize(7.5);doc.setTextColor(...BR);doc.text("Observaciones inspección de canales",mg+4,y+7);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...INK);doc.text(doc.splitTextToSize(form.canalObs,cW-8).slice(0,2),mg+4,y+13);y+=22;}
-    if(eqObs){y+=3;doc.setFillColor(...SND);doc.roundedRect(mg,y,cW,18,3,3,"F");doc.setFont("helvetica","bold");doc.setFontSize(7.5);doc.setTextColor(...INK);doc.text("Observaciones verificación de la ecuación",mg+4,y+7);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...INK);doc.text(doc.splitTextToSize(eqObs,cW-8).slice(0,2),mg+4,y+13);y+=22;}
-    doc.addPage(); addPageHeader(`Verificación del equipo — ${form.equipo}`);
-    let y3=36;
-    const eqR=EQUIP_TABLES[form.equipo]||EQUIP_GP;
-    const cw=[cW*0.68,cW*0.11,cW*0.21];
-    doc.setFillColor(...BR); doc.rect(mg,y3,cW,8,"F");
-    doc.setFont("helvetica","bold"); doc.setFontSize(7); doc.setTextColor(...WHT);
-    doc.text("ÍTEM DE VERIFICACIÓN",mg+3,y3+5.5); doc.text("POND.",mg+cw[0]+3,y3+5.5); doc.text("CALIFICACIÓN",mg+cw[0]+cw[1]+cw[2]/2,y3+5.5,{align:"center"});
-    y3+=8;
-    eqR.forEach((row,i)=>{
-      const ans=equipScores[i];
-      const isNeg=row.item.includes("exceso de humedad")||row.item.includes("humedad o agua");
-      const isOk=ans!==undefined&&(isNeg?ans==="NO":ans==="SI");
-      if(i%2===0){doc.setFillColor(...SND); doc.rect(mg,y3,cW,8,"F");}
-      if(ans!==undefined){doc.setFillColor(...(isOk?[212,237,223]:[245,234,234]));doc.rect(mg+cw[0]+cw[1],y3,cw[2],8,"F");}
-      doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(...INK);
-      doc.text(doc.splitTextToSize(row.item,cw[0]-6)[0],mg+3,y3+5.5); doc.text(String(row.pond),mg+cw[0]+3,y3+5.5);
-      if(ans!==undefined){doc.setFont("helvetica","bold");doc.setTextColor(...(isOk?GRN:BR));doc.text(ans,mg+cw[0]+cw[1]+cw[2]/2,y3+5.5,{align:"center"});}
-      doc.setDrawColor(226,217,208); doc.setLineWidth(0.2); doc.line(mg,y3+8,mg+cW,y3+8);
-      y3+=8;
-    });
-    doc.setFillColor(...INK); doc.rect(mg,y3,cW,9,"F");
-    doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(...WHT);
-    doc.text("PUNTUACIÓN TOTAL",mg+3,y3+6); doc.text(`${equipTotal} / 20 pts — ${scoreLabel(equipTotal,20)}`,mg+cW-3,y3+6,{align:"right"});
-    y3+=14;
-    if(equipObs){const oLe=doc.splitTextToSize(equipObs,cW-8);const bh=oLe.length*5+12;doc.setFillColor(...SND);doc.roundedRect(mg,y3,cW,bh,3,3,"F");doc.setFont("helvetica","bold");doc.setFontSize(7.5);doc.setTextColor(...BR);doc.text("Observaciones del equipo",mg+4,y3+8);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...INK);doc.text(oLe,mg+4,y3+14);}
-    doc.addPage(); addPageHeader("Recomendaciones y conclusiones");
-    let y4=36;
-    if(allRecs.length>0){
-      doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(...INK); doc.text("Recomendaciones",mg,y4); y4+=8;
-      allRecs.forEach((r,i)=>{
-        const parts=r.text.split(":");const title=parts[0];const body=parts.slice(1).join(":").trim();
-        doc.setFillColor(...BR); doc.circle(mg+5,y4+5,4,"F");
-        doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(...WHT); doc.text(String(i+1),mg+5,y4+7,{align:"center"});
-        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(...INK); doc.text(title,mg+13,y4+5);
-        if(body){doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...MUT);doc.text(doc.splitTextToSize(body,cW-13).slice(0,2),mg+13,y4+11);y4+=7;}
-        y4+=16;
-        if(y4>H-50){doc.addPage();doc.setFillColor(...BR);doc.rect(0,0,W,14,"F");doc.setFont("helvetica","bold");doc.setFontSize(8);doc.setTextColor(...WHT);doc.text("ALURA · Informe de auditoría",mg,9);y4=24;}
-      });
-      y4+=4;
-    }
-    doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...INK); doc.text("Conclusiones",mg,y4); y4+=7;
-    const concText=form.conclusiones||(selectedConcls.length>0?selectedConcls.map(c=>c.text).join(" "): `El resultado de la auditoría evidencia un cumplimiento general del ${totalPct}%. ${equipTotal>=16?"Aunque el equipo se encuentra operativo y con mantenimiento vigente, se recomienda fortalecer la técnica operativa.":"Se recomienda revisión técnica del equipo y la formación del operario."}`);
-    const cLines=doc.splitTextToSize(concText,cW-8);
-    const cBH=cLines.length*5+14;
-    doc.setFillColor(...SND); doc.roundedRect(mg,y4,cW,cBH,3,3,"F");
-    doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(...INK); doc.text(cLines,mg+4,y4+10); y4+=cBH+12;
-    doc.setFillColor(...BR); doc.roundedRect(mg,y4,cW,22,4,4,"F");
-    doc.setFont("helvetica","bold"); doc.setFontSize(26); doc.setTextColor(...WHT); doc.text(`${totalScore} / 100`,W/2,y4+13,{align:"center"});
-    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(255,255,255,0.65); doc.text(`Cumplimiento: ${totalPct}% · ${scoreLabel(totalScore,100)}`,W/2,y4+19,{align:"center"});
-    y4+=30;
-    if(y4<H-30){
-      doc.setDrawColor(200,200,200); doc.setLineWidth(0.3);
-      doc.line(mg,y4+10,mg+65,y4+10); doc.line(mg+75,y4+10,mg+140,y4+10);
-      doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(...MUT);
-      doc.text(form.responsable?"Auditor: "+form.responsable:"Auditor",mg,y4+15);
-      doc.text(form.responsablePlanta?"Resp. planta: "+form.responsablePlanta:"Responsable planta",mg+75,y4+15);
-    }
-    const nPages=doc.getNumberOfPages();
-    for(let p=1;p<=nPages;p++){
-      doc.setPage(p); doc.setFillColor(...SND); doc.rect(0,H-9,W,9,"F");
+      const col=sCol(c.score,c.max);
+      doc.setFillColor(...SND); doc.roundedRect(cx,y,cw3p,20,2,2,"F");
+      doc.setDrawColor(...col); doc.setLineWidth(0.35); doc.roundedRect(cx,y,cw3p,20,2,2,"D");
+      doc.setFont("helvetica","bold"); doc.setFontSize(6); doc.setTextColor(...MUT);
+      doc.text(doc.splitTextToSize(c.lbl,cw3p-4)[0], cx+3, y+5);
+      doc.setFont("helvetica","bold"); doc.setFontSize(17); doc.setTextColor(...col);
+      doc.text(String(c.score), cx+3, y+15);
+      const sw=doc.getTextWidth(String(c.score));
       doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(...MUT);
-      doc.text("ALURA · Science for Life · Uso confidencial interno Alura",mg,H-4);
-      doc.text(`Pág. ${p} / ${nPages}`,W-mg,H-4,{align:"right"});
+      doc.text(`/ ${c.max}  (${pct}%)`, cx+3+sw+1, y+15);
+      const bw=cw3p-6;
+      doc.setFillColor(226,217,208); doc.roundedRect(cx+3,y+17,bw,1.8,0.5,0.5,"F");
+      if(pct>0){doc.setFillColor(...col); doc.roundedRect(cx+3,y+17,bw*pct/100,1.8,0.5,0.5,"F");}
+    });
+    y += 24;
+
+    // CANAL DISTRIBUTION
+    doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...INK);
+    doc.text("Distribución de canales", mg, y); y+=4;
+    const cItems=[{lbl:"Buena (B)",cnt:canalCounts.B,col:GRN},{lbl:"Regular (R)",cnt:canalCounts.R,col:AMB},
+      {lbl:"Mala (M)",cnt:canalCounts.M,col:BR},{lbl:"Insuficiente (I)",cnt:canalCounts.I,col:[136,135,128]}];
+    const totCan=Object.values(canalCounts).reduce((a,b)=>a+b,0);
+    const bMaxW=cW-46, maxCnt=Math.max(...cItems.map(d=>d.cnt),1);
+    cItems.forEach(d=>{
+      const p2=totCan>0?Math.round((d.cnt/totCan)*100):0;
+      const bW=(d.cnt/maxCnt)*bMaxW;
+      doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(...INK);
+      doc.text(d.lbl, mg, y+4);
+      doc.setFillColor(226,217,208); doc.roundedRect(mg+34,y,bMaxW,5,1,1,"F");
+      if(d.cnt>0){doc.setFillColor(...d.col); doc.roundedRect(mg+34,y,bW,5,1,1,"F");}
+      doc.setFont("helvetica","bold"); doc.setFontSize(7); doc.setTextColor(...d.col);
+      doc.text(`${d.cnt}  (${p2}%)`, mg+34+bMaxW+2, y+4);
+      y+=7;
+    });
+    y+=2;
+
+    // TEXTS B + C (two columns)
+    const eqText = eqObs||(eqNum>=15
+      ?"Se verificaron los resultados de magro, la ecuación aplicada corresponde a la versión vigente 2023. Esta se encuentra implementada de manera consistente y sin desviaciones."
+      :"Se verificaron los resultados de magro, la ecuación aplicada corresponde a la versión vigente 2023. Esta no se encuentra implementada de manera consistente y sin desviaciones.");
+    const eqTxt2 = equipObs||(equipTotal>=16
+      ?"El equipo se encuentra en condiciones adecuadas de funcionamiento. Se evidencia buen mantenimiento y limpieza, contribuyendo a la confiabilidad de los resultados."
+      :"El equipo presenta condiciones de mantenimiento deficientes. Se recomienda revisión técnica, limpieza profunda y mantenimiento preventivo.");
+    const hw=(cW-3)/2;
+    const bLinesPDF=doc.splitTextToSize(`B. Ecuación: ${eqText}`,hw-4);
+    const cLinesPDF=doc.splitTextToSize(`C. Equipo: ${eqTxt2}`,hw-4);
+    const tH=Math.max(Math.min(bLinesPDF.length,4),Math.min(cLinesPDF.length,4))*3.6+8;
+    doc.setFillColor(...SND); doc.roundedRect(mg,y,hw,tH,2,2,"F");
+    doc.setFillColor(...SND); doc.roundedRect(mg+hw+3,y,hw,tH,2,2,"F");
+    doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(...INK);
+    doc.text(bLinesPDF.slice(0,4), mg+3, y+5);
+    doc.text(cLinesPDF.slice(0,4), mg+hw+6, y+5);
+    y += tH+4;
+
+    // EVIDENCIA FOTOGRAFICA
+    const hasPhotos=photos.some(p=>p);
+    if(hasPhotos){
+      doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...INK);
+      doc.text("Evidencia fotográfica", mg, y); y+=4;
+      const imgW=(cW-4)/2, imgH=Math.round(imgW*9/16);
+      for(let i=0;i<2;i++){
+        if(photos[i]){
+          try{
+            const b64=await loadImgBase64(photos[i].url);
+            doc.addImage(b64,"JPEG",mg+i*(imgW+4),y,imgW,imgH,"","FAST");
+            const cap=(photoLabels[i]||"").slice(0,70);
+            if(cap){
+              doc.setFont("helvetica","italic"); doc.setFontSize(6); doc.setTextColor(...MUT);
+              doc.text(doc.splitTextToSize(cap,imgW)[0], mg+i*(imgW+4), y+imgH+3);
+            }
+          }catch(e){}
+        }
+      }
+      y+=imgH+8;
     }
+
+    // RECOMENDACIONES
+    if(allRecs.length>0){
+      doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...INK);
+      doc.text(`Recomendaciones (${allRecs.length})`, mg, y); y+=4;
+      const maxRecs=Math.min(allRecs.length,7);
+      for(let i=0;i<maxRecs;i++){
+        const r=allRecs[i];
+        const parts=r.text.split(":");
+        const title=parts[0];
+        const body=parts.slice(1).join(":").trim();
+        doc.setFillColor(...BR); doc.circle(mg+3,y+2.5,2.5,"F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(5.5); doc.setTextColor(...WHT);
+        doc.text(String(i+1),mg+3,y+3.5,{align:"center"});
+        doc.setFont("helvetica","bold"); doc.setFontSize(7); doc.setTextColor(...INK);
+        doc.text(title,mg+8,y+3.5);
+        if(body){
+          doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(...MUT);
+          const bLn=doc.splitTextToSize(body,cW-10);
+          doc.text(bLn[0],mg+8,y+7.5);
+          y+=4;
+        }
+        y+=8;
+      }
+      if(allRecs.length>7){
+        doc.setFont("helvetica","italic"); doc.setFontSize(6.5); doc.setTextColor(...MUT);
+        doc.text(`+ ${allRecs.length-7} recomendaciones adicionales`, mg+8, y); y+=6;
+      }
+      y+=2;
+    }
+
+    // CONCLUSIONES
+    doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...INK);
+    doc.text("Conclusiones", mg, y); y+=4;
+    const concText=form.conclusiones||(selectedConcls.length>0
+      ? selectedConcls.map(c=>c.text).join(" ")
+      : `El resultado de la auditoría evidencia un cumplimiento general del ${totalPct}%. ${
+          equipTotal>=16
+            ?"Aunque el equipo se encuentra operativo y con mantenimiento vigente, se recomienda fortalecer la técnica operativa y asegurar condiciones óptimas para garantizar datos confiables."
+            :"Se recomienda revisión técnica del equipo, fortalecer el mantenimiento preventivo y la formación del operario responsable de la medición."
+        }`);
+    const conclL=doc.splitTextToSize(concText,cW-6);
+    const conclH=Math.min(conclL.length,5)*3.8+9;
+    doc.setFillColor(...SND); doc.roundedRect(mg,y,cW,conclH,2,2,"F");
+    doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(...INK);
+    doc.text(conclL.slice(0,5),mg+4,y+6); y+=conclH+4;
+
+    // SCORE BADGE
+    doc.setFillColor(...BR); doc.roundedRect(mg,y,cW,13,3,3,"F");
+    doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(...WHT);
+    doc.text(`${totalScore} / 100 pts`, W/2, y+8, {align:"center"});
+    doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(255,255,255,0.7);
+    doc.text(`Cumplimiento: ${totalPct}% · ${sLbl(totalScore,100)}`, W/2, y+12, {align:"center"});
+    y+=17;
+
+    // FIRMAS
+    if(y<H-20){
+      doc.setDrawColor(200,200,200); doc.setLineWidth(0.25);
+      doc.line(mg,y+6,mg+55,y+6); doc.line(mg+65,y+6,mg+120,y+6);
+      doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(...MUT);
+      doc.text(form.responsable?"Auditor: "+form.responsable:"Auditor",mg,y+10);
+      doc.text(form.responsablePlanta?"Resp. planta: "+form.responsablePlanta:"Responsable planta",mg+65,y+10);
+    }
+
+    // FOOTER
+    doc.setFillColor(...SND); doc.rect(0,H-8,W,8,"F");
+    doc.setFont("helvetica","normal"); doc.setFontSize(6); doc.setTextColor(...MUT);
+    doc.text("ALURA · Science for Life · Uso confidencial interno Alura", mg, H-3);
+    doc.text("1 / 1", W-mg, H-3, {align:"right"});
+
     doc.save(`informe_auditoria_${(form.planta||"planta").replace(/\s+/g,"_")}_${form.fecha||"2026"}.pdf`);
   };
 
@@ -652,8 +695,7 @@ function ReportView({ data, onBack }) {
                       </div>
                     )}
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: Ink, marginBottom: 3 }}>{i === 0 ? "Punción fuera del punto correcto." : "Desalineación del equipo."}</div>
-                  <div style={{ fontSize: 11, color: Muted, lineHeight: 1.5, fontStyle: "italic" }}>{PHOTO_LABELS[i]}</div>
+                  {(photoLabels[i]) && <div style={{ fontSize: 12, color: Muted, lineHeight: 1.5, fontStyle: "italic" }}>{photoLabels[i]}</div>}
                 </div>
               );
             })}
@@ -745,6 +787,7 @@ export default function AccuremaxApp() {
   const [eqScore, setEqScore] = useState("");
   const [eqObs, setEqObs] = useState("");
   const [photos, setPhotos] = useState([null, null]);
+  const [photoLabels, setPhotoLabels] = useState(["", ""]);
   const [recs, setRecs] = useState({});
   const [customRec, setCustomRec] = useState("");
   const [concls, setConcls] = useState({});
@@ -788,6 +831,7 @@ export default function AccuremaxApp() {
 
   const handleExport = () => {
     const wb = XLSX.utils.book_new();
+    const totalCanales = Object.values(canalCounts).reduce((a, b) => a + b, 0);
 
     // Hoja 1: Datos generales
     const sheetVisita = XLSX.utils.aoa_to_sheet([
@@ -858,274 +902,7 @@ export default function AccuremaxApp() {
     a.download = "Plantilla registro de datos_Excel.xlsx";
     a.click();
   };
-
-  // handlePDF está definida en ReportView donde tiene acceso a todos los datos calculados
-  const handlePDF_unused = async () => {
-    const { jsPDF } = await import("jspdf");
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const W = 210, H = 297, mg = 16, cW = W - mg * 2;
-    const BR = [153,57,53], BRD = [122,44,42], INK = [44,42,40], MUT = [139,139,141];
-    const GRN = [46,125,82], AMB = [133,79,11], SND = [245,242,238], WHT = [255,255,255];
-    const scoreColor = (s, m) => { const p = m>0?(s/m)*100:0; return p>=80?GRN:p>=50?AMB:BR; };
-    const scoreLabel = (s, m) => { const p = m>0?(s/m)*100:0; return p>=80?"Adecuado":p>=50?"Regular":"Deficiente"; };
-    const addPageHeader = (title) => {
-      doc.setFillColor(...BR); doc.rect(0,0,W,14,"F");
-      doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(...WHT);
-      doc.text("ALURA · Science for Life · Informe de auditoría", mg, 9);
-      doc.text(form.planta||"", W-mg, 9, { align:"right" });
-      doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(...INK);
-      doc.text(title, mg, 26);
-      doc.setFillColor(...BR); doc.rect(mg, 29, 28, 0.8, "F");
-    };
-
-    // ── PORTADA ───────────────────────────────────────────────────────
-    doc.setFillColor(...BR); doc.rect(0,0,W,H,"F");
-    doc.setFillColor(...BRD); doc.triangle(W,H*0.55,W,H,W*0.35,H,"F");
-    // Logo
-    try {
-      const logoB64 = await loadImgBase64("/Asset 63@3x.png");
-      doc.addImage(logoB64,"PNG",mg,mg,44,18,"","FAST");
-    } catch {
-      doc.setFont("helvetica","bold"); doc.setFontSize(22); doc.setTextColor(...WHT);
-      doc.text("ALURA",mg,mg+12);
-    }
-    // Confidencial tag
-    doc.setDrawColor(...WHT,0.4); doc.setLineWidth(0.3);
-    doc.roundedRect(W-mg-58,mg,58,8,2,2,"D");
-    doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(...WHT);
-    doc.text("USO CONFIDENCIAL · INTERNO ALURA",W-mg-29,mg+5,{align:"center"});
-    // Divider
-    doc.setDrawColor(255,255,255,0.2); doc.setLineWidth(0.4);
-    doc.line(mg,70,W-mg,70);
-    // Title
-    doc.setFont("helvetica","bold"); doc.setFontSize(30); doc.setTextColor(...WHT);
-    doc.text("Informe de",mg,84);
-    doc.text("auditoría",mg,96);
-    doc.setFont("helvetica","normal"); doc.setFontSize(13);
-    doc.setTextColor(255,255,255,0.65);
-    doc.text("Medición de magro en canales porcinas",mg,107);
-    // Info grid
-    const infoGrid = [
-      ["Planta",form.planta||"—"],["Fecha",form.fecha||"—"],
-      ["Auditor",form.responsable||"—"],["Responsable planta",form.responsablePlanta||"—"],
-      ["Operario",form.operario||"—"],["Equipo",form.equipo||"—"],
-    ];
-    let gy=122;
-    infoGrid.forEach(([lbl,val],i)=>{
-      const col=i%2, row=Math.floor(i/2);
-      const gx=mg+col*(cW/2+4), gyy=gy+row*18;
-      doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(255,255,255,0.45);
-      doc.text(lbl.toUpperCase(),gx,gyy);
-      doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(...WHT);
-      doc.text(String(val),gx,gyy+6);
-    });
-    // Score badge
-    const sy=H-62;
-    doc.setFillColor(255,255,255,0.1); doc.roundedRect(mg,sy,cW,44,5,5,"F");
-    doc.setDrawColor(255,255,255,0.2); doc.setLineWidth(0.4);
-    doc.roundedRect(mg,sy,cW,44,5,5,"D");
-    doc.setFont("helvetica","bold"); doc.setFontSize(46); doc.setTextColor(...WHT);
-    doc.text(`${totalScore}`,mg+28,sy+28,{align:"center"});
-    doc.setFontSize(13); doc.setTextColor(255,255,255,0.6);
-    doc.text("/ 100 pts",mg+44,sy+28);
-    doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(255,255,255,0.55);
-    doc.text(`Cumplimiento general: ${totalPct}% · ${scoreLabel(totalScore,100)}`,mg+28,sy+37,{align:"center"});
-    doc.text(new Date().toLocaleDateString("es-CO",{year:"numeric",month:"long",day:"numeric"}),W-mg,sy+37,{align:"right"});
-
-    // ── PÁGINA 2: RESULTADOS ────────────────────────────────────────
-    doc.addPage(); addPageHeader("Resumen de resultados");
-    let y=36;
-    const cards=[
-      {label:"A. Inspección de canales",score:canalScore,max:60},
-      {label:"B. Verificación de la ecuación",score:eqScore!==""?Number(eqScore):0,max:20},
-      {label:"C. Estado físico del equipo",score:equipTotal,max:20},
-    ];
-    const cw3=(cW-8)/3;
-    cards.forEach((c,i)=>{
-      const cx=mg+i*(cw3+4);
-      const pct=c.max>0?Math.round((c.score/c.max)*100):0;
-      const col=scoreColor(c.score,c.max);
-      doc.setFillColor(...SND); doc.roundedRect(cx,y,cw3,36,3,3,"F");
-      doc.setDrawColor(...col,0.4); doc.setLineWidth(0.5);
-      doc.roundedRect(cx,y,cw3,36,3,3,"D");
-      const lblLines=doc.splitTextToSize(c.label,cw3-6);
-      doc.setFont("helvetica","bold"); doc.setFontSize(6.5); doc.setTextColor(...MUT);
-      doc.text(lblLines,cx+4,y+7);
-      doc.setFont("helvetica","bold"); doc.setFontSize(20); doc.setTextColor(...col);
-      doc.text(String(c.score),cx+4,y+23);
-      doc.setFontSize(8); doc.setTextColor(...MUT);
-      doc.text(`/ ${c.max} pts`,cx+4+doc.getTextWidth(String(c.score))+1,y+23);
-      doc.setFillColor(226,217,208); doc.roundedRect(cx+4,y+27,cw3-8,3,1,1,"F");
-      if(pct>0){doc.setFillColor(...col); doc.roundedRect(cx+4,y+27,(cw3-8)*pct/100,3,1,1,"F");}
-      doc.setFont("helvetica","bold"); doc.setFontSize(7); doc.setTextColor(...col);
-      doc.text(`${pct}%`,cx+cw3-4,y+30,{align:"right"});
-    });
-    y+=46;
-    // Canal distribution
-    doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...INK);
-    doc.text("Distribución de canales",mg,y); y+=7;
-    const canalItems=[
-      {lbl:"Buena (B)",cnt:canalCounts.B,col:GRN},
-      {lbl:"Regular (R)",cnt:canalCounts.R,col:AMB},
-      {lbl:"Mala (M)",cnt:canalCounts.M,col:BR},
-      {lbl:"Insuficiente (I)",cnt:canalCounts.I,col:[136,135,128]},
-    ];
-    const bMaxW=cW-52, maxCnt=Math.max(...canalItems.map(d=>d.cnt),1);
-    canalItems.forEach(d=>{
-      const pct2=totalCanales>0?Math.round((d.cnt/totalCanales)*100):0;
-      const bW=(d.cnt/maxCnt)*bMaxW;
-      doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(...INK);
-      doc.text(d.lbl,mg,y+5);
-      doc.setFillColor(226,217,208); doc.roundedRect(mg+38,y,bMaxW,6,1,1,"F");
-      if(d.cnt>0){doc.setFillColor(...d.col); doc.roundedRect(mg+38,y,bW,6,1,1,"F");}
-      doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(...d.col);
-      doc.text(`${d.cnt}  (${pct2}%)`,mg+38+bMaxW+3,y+5);
-      y+=12;
-    });
-    // Observations A
-    if(form.canalObs){
-      y+=3;
-      doc.setFillColor(245,234,234); doc.roundedRect(mg,y,cW,18,3,3,"F");
-      doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...BR);
-      doc.text("Observaciones inspección de canales",mg+4,y+7);
-      doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(...INK);
-      const oL=doc.splitTextToSize(form.canalObs,cW-8);
-      doc.text(oL.slice(0,2),mg+4,y+13); y+=22;
-    }
-    // Ecuación obs
-    if(eqObs){
-      y+=3;
-      doc.setFillColor(...SND); doc.roundedRect(mg,y,cW,18,3,3,"F");
-      doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...INK);
-      doc.text("Observaciones verificación de la ecuación",mg+4,y+7);
-      doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(...INK);
-      const oL2=doc.splitTextToSize(eqObs,cW-8);
-      doc.text(oL2.slice(0,2),mg+4,y+13); y+=22;
-    }
-
-    // ── PÁGINA 3: EQUIPO ─────────────────────────────────────────────
-    doc.addPage(); addPageHeader(`Verificación del equipo — ${form.equipo}`);
-    let y3=36;
-    const eqR=EQUIP_TABLES[form.equipo]||EQUIP_GP;
-    const cw=[cW*0.68,cW*0.11,cW*0.21];
-    doc.setFillColor(...BR); doc.rect(mg,y3,cW,8,"F");
-    doc.setFont("helvetica","bold"); doc.setFontSize(7); doc.setTextColor(...WHT);
-    doc.text("ÍTEM DE VERIFICACIÓN",mg+3,y3+5.5);
-    doc.text("POND.",mg+cw[0]+3,y3+5.5);
-    doc.text("CALIFICACIÓN",mg+cw[0]+cw[1]+cw[2]/2,y3+5.5,{align:"center"});
-    y3+=8;
-    eqR.forEach((row,i)=>{
-      const ans=equipScores[i];
-      const isNeg=row.item.includes("exceso de humedad")||row.item.includes("humedad o agua");
-      const isOk=ans!==undefined&&(isNeg?ans==="NO":ans==="SI");
-      if(i%2===0){doc.setFillColor(...SND); doc.rect(mg,y3,cW,8,"F");}
-      if(ans!==undefined){
-        doc.setFillColor(...(isOk?[212,237,223]:[245,234,234]));
-        doc.rect(mg+cw[0]+cw[1],y3,cw[2],8,"F");
-      }
-      doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(...INK);
-      const rLines=doc.splitTextToSize(row.item,cw[0]-6);
-      doc.text(rLines[0],mg+3,y3+5.5);
-      doc.text(String(row.pond),mg+cw[0]+3,y3+5.5);
-      if(ans!==undefined){
-        doc.setFont("helvetica","bold");
-        doc.setTextColor(...(isOk?GRN:BR));
-        doc.text(ans,mg+cw[0]+cw[1]+cw[2]/2,y3+5.5,{align:"center"});
-      }
-      doc.setDrawColor(226,217,208); doc.setLineWidth(0.2);
-      doc.line(mg,y3+8,mg+cW,y3+8);
-      y3+=8;
-    });
-    doc.setFillColor(...INK); doc.rect(mg,y3,cW,9,"F");
-    doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(...WHT);
-    doc.text("PUNTUACIÓN TOTAL",mg+3,y3+6);
-    doc.text(`${equipTotal} / 20 pts — ${scoreLabel(equipTotal,20)}`,mg+cW-3,y3+6,{align:"right"});
-    y3+=14;
-    if(equipObs){
-      const oLe=doc.splitTextToSize(equipObs,cW-8);
-      const bh=oLe.length*5+12;
-      doc.setFillColor(...SND); doc.roundedRect(mg,y3,cW,bh,3,3,"F");
-      doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...BR);
-      doc.text("Observaciones del equipo",mg+4,y3+8);
-      doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(...INK);
-      doc.text(oLe,mg+4,y3+14);
-    }
-
-    // ── PÁGINA 4: RECOMENDACIONES Y CONCLUSIONES ─────────────────────
-    doc.addPage(); addPageHeader("Recomendaciones y conclusiones");
-    let y4=36;
-    if(allRecs.length>0){
-      doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(...INK);
-      doc.text("Recomendaciones",mg,y4); y4+=8;
-      allRecs.forEach((r,i)=>{
-        const parts=r.text.split(":");
-        const title=parts[0];
-        const body=parts.slice(1).join(":").trim();
-        doc.setFillColor(...BR); doc.circle(mg+5,y4+5,4,"F");
-        doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(...WHT);
-        doc.text(String(i+1),mg+5,y4+7,{align:"center"});
-        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(...INK);
-        doc.text(title,mg+13,y4+5);
-        if(body){
-          doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(...MUT);
-          const bL=doc.splitTextToSize(body,cW-13);
-          doc.text(bL.slice(0,2),mg+13,y4+11);
-          y4+=7;
-        }
-        y4+=16;
-        if(y4>H-50){
-          doc.addPage(); doc.setFillColor(...BR); doc.rect(0,0,W,14,"F");
-          doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(...WHT);
-          doc.text("ALURA · Informe de auditoría",mg,9);
-          y4=24;
-        }
-      });
-      y4+=4;
-    }
-    // Conclusiones
-    doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...INK);
-    doc.text("Conclusiones",mg,y4); y4+=7;
-    const concText=form.conclusiones||
-      `El resultado de la auditoría evidencia un cumplimiento general del ${totalPct}%. ${
-        equipTotal>=16
-          ?"Aunque el equipo se encuentra operativo y con mantenimiento vigente, se recomienda fortalecer la técnica operativa, estandarizar el proceso y asegurar condiciones óptimas del equipo para garantizar datos confiables."
-          :"Se recomienda revisión técnica del equipo, fortalecer el mantenimiento preventivo y la formación del operario responsable de la medición."
-      }`;
-    const cLines=doc.splitTextToSize(concText,cW-8);
-    const cBH=cLines.length*5+14;
-    doc.setFillColor(...SND); doc.roundedRect(mg,y4,cW,cBH,3,3,"F");
-    doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(...INK);
-    doc.text(cLines,mg+4,y4+10); y4+=cBH+12;
-    // Score final
-    doc.setFillColor(...BR); doc.roundedRect(mg,y4,cW,22,4,4,"F");
-    doc.setFont("helvetica","bold"); doc.setFontSize(26); doc.setTextColor(...WHT);
-    doc.text(`${totalScore} / 100`,W/2,y4+13,{align:"center"});
-    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(255,255,255,0.65);
-    doc.text(`Cumplimiento: ${totalPct}% · ${scoreLabel(totalScore,100)}`,W/2,y4+19,{align:"center"});
-    y4+=30;
-    // Firmas
-    if(y4<H-30){
-      doc.setDrawColor(200,200,200); doc.setLineWidth(0.3);
-      doc.line(mg,y4+10,mg+65,y4+10);
-      doc.line(mg+75,y4+10,mg+140,y4+10);
-      doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(...MUT);
-      doc.text(form.responsable?"Auditor: "+form.responsable:"Auditor",mg,y4+15);
-      doc.text(form.responsablePlanta?"Resp. planta: "+form.responsablePlanta:"Responsable planta",mg+75,y4+15);
-    }
-    // Footer en todas las páginas
-    const nPages=doc.getNumberOfPages();
-    for(let p=1;p<=nPages;p++){
-      doc.setPage(p);
-      doc.setFillColor(...SND); doc.rect(0,H-9,W,9,"F");
-      doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(...MUT);
-      doc.text("ALURA · Science for Life · Uso confidencial interno Alura",mg,H-4);
-      doc.text(`Pág. ${p} / ${nPages}`,W-mg,H-4,{align:"right"});
-    }
-    doc.save(`informe_auditoria_${(form.planta||"planta").replace(/\s+/g,"_")}_${form.fecha||"2026"}.pdf`);
-    showToast("PDF generado correctamente");
-  };
-
-  const reportData = { form, equipScores, equipObs, eqScore, eqObs, photos, selectedRecs, customRec, canalCounts, equipRows, equipTotal, selectedConcls };
+  const reportData = { form, equipScores, equipObs, eqScore, eqObs, photos, photoLabels, selectedRecs, customRec, canalCounts, equipRows, equipTotal, selectedConcls };
 
   return (
     <>
@@ -1198,7 +975,7 @@ export default function AccuremaxApp() {
                 </div>
                 <div>
                   <Label>N.° canales auditadas</Label>
-                  <Input type="number" placeholder="Ej. 240" min="1" value={form.canalesTotal} onChange={e => set("canalesTotal", e.target.value)} />
+                  <Input type="text" inputMode="numeric" placeholder="Ej. 240" value={form.canalesTotal} onChange={e => set("canalesTotal", e.target.value.replace(/[^0-9]/g, ""))} />
                 </div>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <Label>Observaciones generales</Label>
@@ -1213,9 +990,9 @@ export default function AccuremaxApp() {
                 {[["B", "Buena", GreenLight, Green], ["R", "Regular", AmberLight, Amber], ["M", "Mala", BLight, B], ["I", "Insuficiente", "#f1efe8", "#888780"]].map(([cat, label, bg, color]) => (
                   <div key={cat} style={{ background: bg, border: `1px solid ${color}33`, borderRadius: 10, padding: "14px 14px 12px", textAlign: "center" }}>
                     <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color, marginBottom: 8 }}>{cat} — {label}</div>
-                    <Input type="number" min="0" value={canalCounts[cat] || ""} placeholder="0"
+                    <Input type="text" inputMode="numeric" value={canalCounts[cat] || ""} placeholder="0"
                       style={{ textAlign: "center", fontFamily: "'Nunito',sans-serif", fontSize: 22, fontWeight: 700, color, background: White, height: 48, border: `1px solid ${color}44`, borderRadius: 8 }}
-                      onChange={e => setCanalCounts(c => ({ ...c, [cat]: Number(e.target.value) || 0 }))} />
+                      onChange={e => setCanalCounts(c => ({ ...c, [cat]: Number(e.target.value.replace(/[^0-9]/g, "")) || 0 }))} />
                     {canalCounts[cat] > 0 && (
                       <div style={{ fontSize: 11, color, marginTop: 6, fontWeight: 600 }}>
                         {Math.round((canalCounts[cat] / Math.max(1, Object.values(canalCounts).reduce((a,b)=>a+b,0))) * 100)}%
@@ -1355,23 +1132,27 @@ export default function AccuremaxApp() {
               <div className="grid-2" style={{ gap: 16 }}>
                 {[0, 1].map(idx => (
                   <div key={idx}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: Ink, marginBottom: 8, lineHeight: 1.4 }}>{PHOTO_LABELS[idx]}</div>
                     {photos[idx] ? (
-                      <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: `1px solid ${SandBorder}`, aspectRatio: "16/9" }}>
-                        <img src={photos[idx].url} alt={PHOTO_LABELS[idx]} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: `1px solid ${SandBorder}`, aspectRatio: "16/9", marginBottom: 8 }}>
+                        <img src={photos[idx].url} alt={`Foto ${idx+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         <button onClick={() => removePhoto(idx)} style={{ position: "absolute", top: 8, right: 8, width: 26, height: 26, borderRadius: "50%", background: "rgba(0,0,0,0.65)", border: "none", color: White, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
-                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.55)", padding: "14px 10px 8px", fontSize: 11, color: White, lineHeight: 1.3 }}>{photos[idx].name}</div>
+                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.55)", padding: "8px 10px", fontSize: 10, color: White }}>{photos[idx].name}</div>
                       </div>
                     ) : (
                       <div onClick={() => photoRefs[idx].current?.click()}
-                        style={{ aspectRatio: "16/9", border: `2px dashed ${SandBorder}`, borderRadius: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", background: Sand, gap: 8 }}
+                        style={{ aspectRatio: "16/9", border: `2px dashed ${SandBorder}`, borderRadius: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", background: Sand, gap: 8, marginBottom: 8 }}
                         onMouseEnter={e => (e.currentTarget.style.borderColor = B)} onMouseLeave={e => (e.currentTarget.style.borderColor = SandBorder)}>
                         <div style={{ width: 44, height: 44, background: BLight, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={B} strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
                         </div>
-                        <span style={{ fontSize: 12, color: Muted }}>Haz clic para agregar foto</span>
+                        <span style={{ fontSize: 12, color: Muted }}>Foto {idx + 1} — clic para agregar</span>
                       </div>
                     )}
+                    <Input
+                      placeholder={`Descripción / pie de foto ${idx + 1}…`}
+                      value={photoLabels[idx]}
+                      onChange={e => setPhotoLabels(l => { const n = [...l]; n[idx] = e.target.value; return n; })}
+                    />
                     <input ref={photoRefs[idx]} type="file" accept="image/*" style={{ display: "none" }} onChange={e => handlePhoto(idx, e)} />
                   </div>
                 ))}
