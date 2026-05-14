@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from "recharts";
 import * as XLSX from "xlsx";
 
@@ -194,7 +194,7 @@ function ReportView({ data, onBack }) {
   const totalCanalReal = Object.values(data.canalCounts).reduce((a, b) => a + b, 0);
   const hasRealData = !!(data.form.planta || totalCanalReal > 0 || data.eqScore !== "" || Object.keys(data.equipScores).length > 0);
   const merged = hasRealData ? data : { ...data, ...DEMO, form: { ...DEMO.form, ...Object.fromEntries(Object.entries(data.form).filter(([,v]) => v)) } };
-  const { form, equipScores, equipObs, eqScore, eqObs, photos, selectedRecs, customRec, canalCounts, equipRows } = merged;
+  const { form, equipScores, equipObs, eqScore, eqObs, photos, selectedRecs, customRec, canalCounts, equipRows, selectedConcls = [] } = merged;
 
   const equipTotal = equipRows.reduce((acc, row, i) => {
     const ans = equipScores[i];
@@ -528,19 +528,21 @@ function ReportView({ data, onBack }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {form.conclusiones
                 ? <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>{form.conclusiones}</p>
-                : <>
-                    <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>
-                      {`El resultado de la auditoría evidencia un cumplimiento general del ${totalPct}%.`}
-                    </p>
-                    {desviaciones > 0 && <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>
-                      {`Se identificaron desviaciones relacionadas con la técnica de medición, la alineación del equipo, acumulación de grasa en el punto de inserción (${desvPct}% de las canales clasificadas M o I), las cuales pueden afectar la precisión y consistencia de los datos entregados al cliente.`}
-                    </p>}
-                    <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>
-                      {equipTotal >= 16
-                        ? "Aunque el equipo se encuentra operativo y con mantenimiento vigente, se recomienda fortalecer la técnica operativa, estandarizar el proceso y asegurar condiciones óptimas del equipo para garantizar datos confiables."
-                        : "Se recomienda revisión técnica del equipo, fortalecer el mantenimiento preventivo y la formación del operario responsable de la medición."}
-                    </p>
-                  </>
+                : selectedConcls.length > 0
+                  ? selectedConcls.map(c => <p key={c.id} style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>{c.text}</p>)
+                  : <>
+                      <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>
+                        {`El resultado de la auditoría evidencia un cumplimiento general del ${totalPct}%.`}
+                      </p>
+                      {desviaciones > 0 && <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>
+                        {`Se identificaron desviaciones relacionadas con la técnica de medición, la alineación del equipo, acumulación de grasa en el punto de inserción (${desvPct}% de las canales clasificadas M o I), las cuales pueden afectar la precisión y consistencia de los datos entregados al cliente.`}
+                      </p>}
+                      <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>
+                        {equipTotal >= 16
+                          ? "Aunque el equipo se encuentra operativo y con mantenimiento vigente, se recomienda fortalecer la técnica operativa, estandarizar el proceso y asegurar condiciones óptimas del equipo para garantizar datos confiables."
+                          : "Se recomienda revisión técnica del equipo, fortalecer el mantenimiento preventivo y la formación del operario responsable de la medición."}
+                      </p>
+                    </>
               }
               <div style={{ marginTop: 4, padding: "10px 14px", background: overallSt.bg, borderRadius: 8, border: `1px solid ${overallSt.color}33`, display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ fontFamily: "'Nunito',sans-serif", fontSize: 26, fontWeight: 700, color: overallSt.color, lineHeight: 1 }}>{totalScore}/100</div>
@@ -576,7 +578,15 @@ export default function AccuremaxApp() {
   const [photos, setPhotos] = useState([null, null]);
   const [recs, setRecs] = useState({});
   const [customRec, setCustomRec] = useState("");
+  const [concls, setConcls] = useState({});
   const [toast, setToast] = useState(null);
+  const [recsLibrary, setRecsLibrary] = useState(RECS_LIBRARY);
+  const [conclLibrary, setConclLibrary] = useState([]);
+
+  useEffect(() => {
+    fetch("/recomendaciones.json").then(r => r.json()).then(setRecsLibrary).catch(() => {});
+    fetch("/conclusiones.json").then(r => r.json()).then(setConclLibrary).catch(() => {});
+  }, []);
 
   const photoRef0 = useRef();
   const photoRef1 = useRef();
@@ -584,6 +594,7 @@ export default function AccuremaxApp() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleRec = id => setRecs(r => ({ ...r, [id]: !r[id] }));
+  const toggleConcl = id => setConcls(c => ({ ...c, [id]: !c[id] }));
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
   const handlePhoto = (idx, e) => { const f = e.target.files[0]; if (!f) return; setPhotos(p => { const n = [...p]; n[idx] = { name: f.name, url: URL.createObjectURL(f) }; return n; }); };
@@ -599,8 +610,10 @@ export default function AccuremaxApp() {
   const equipAnswered = Object.keys(equipScores).length;
   const eqNum = Number(eqScore);
   const eqColor = eqNum >= 15 ? Green : eqNum >= 8 ? Amber : eqNum > 0 ? B : Muted;
-  const selectedRecs = RECS_LIBRARY.filter(r => recs[r.id]);
-  const recCats = [...new Set(RECS_LIBRARY.map(r => r.cat))];
+  const selectedRecs = recsLibrary.filter(r => recs[r.id]);
+  const recCats = [...new Set(recsLibrary.map(r => r.cat))];
+  const selectedConcls = conclLibrary.filter(c => concls[c.id]);
+  const conclCats = [...new Set(conclLibrary.map(c => c.cat))];
 
   const handleExport = () => {
     const wb = XLSX.utils.book_new();
@@ -988,7 +1001,7 @@ export default function AccuremaxApp() {
     showToast("PDF generado correctamente");
   };
 
-  const reportData = { form, equipScores, equipObs, eqScore, eqObs, photos, selectedRecs, customRec, canalCounts, equipRows, equipTotal };
+  const reportData = { form, equipScores, equipObs, eqScore, eqObs, photos, selectedRecs, customRec, canalCounts, equipRows, equipTotal, selectedConcls };
 
   return (
     <>
@@ -1242,7 +1255,7 @@ export default function AccuremaxApp() {
                 <div key={cat} style={{ marginBottom: 18 }}>
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: Muted, marginBottom: 8, paddingBottom: 5, borderBottom: `1px solid ${SandBorder}` }}>{cat}</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {RECS_LIBRARY.filter(r => r.cat === cat).map(r => {
+                    {recsLibrary.filter(r => r.cat === cat).map(r => {
                       const isSelected = !!recs[r.id];
                       return (
                         <div key={r.id} onClick={() => toggleRec(r.id)}
@@ -1264,13 +1277,40 @@ export default function AccuremaxApp() {
             </SectionCard>
 
             {/* 06b CONCLUSIONES */}
-            <SectionCard number="06b" title="Conclusiones" subtitle="Opcional · Si se llena, reemplaza el texto automático en el informe">
-              <Textarea
-                placeholder="Escribe las conclusiones de la auditoría. Si se deja vacío, el informe generará un texto automático basado en los resultados."
-                value={form.conclusiones}
-                onChange={e => set("conclusiones", e.target.value)}
-                style={{ minHeight: 100 }}
-              />
+            <SectionCard number="06b" title="Conclusiones" subtitle={`${selectedConcls.length} seleccionada(s) · Si se llena el campo libre, tiene prioridad`}>
+              {conclLibrary.length === 0 && (
+                <div style={{ padding: "12px 14px", background: Sand, borderRadius: 8, fontSize: 12, color: Muted, marginBottom: 12 }}>
+                  Cargando conclusiones desde el repositorio…
+                </div>
+              )}
+              {conclCats.map(cat => (
+                <div key={cat} style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: Muted, marginBottom: 8, paddingBottom: 5, borderBottom: `1px solid ${SandBorder}` }}>{cat}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {conclLibrary.filter(c => c.cat === cat).map(c => {
+                      const isSel = !!concls[c.id];
+                      return (
+                        <div key={c.id} onClick={() => toggleConcl(c.id)}
+                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${isSel ? B : SandBorder}`, background: isSel ? BLight : White, cursor: "pointer", transition: "all .15s" }}>
+                          <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${isSel ? B : SandBorder}`, background: isSel ? B : White, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                            {isSel && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1 4 4 7 9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                          </div>
+                          <span style={{ fontSize: 13, color: isSel ? B : Ink, fontWeight: isSel ? 600 : 400, lineHeight: 1.5 }}>{c.text}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              <div style={{ marginTop: 4 }}>
+                <Label>Conclusión personalizada (tiene prioridad sobre las seleccionadas)</Label>
+                <Textarea
+                  placeholder="Escribe una conclusión específica para esta auditoría…"
+                  value={form.conclusiones}
+                  onChange={e => set("conclusiones", e.target.value)}
+                  style={{ minHeight: 80 }}
+                />
+              </div>
             </SectionCard>
 
             {/* 07 ACCIONES */}

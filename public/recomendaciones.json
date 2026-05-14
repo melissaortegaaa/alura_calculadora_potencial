@@ -1,0 +1,17 @@
+[
+  { "id": "r1",  "cat": "Técnica de punción",       "text": "Ángulo de punción no perpendicular: el operario realiza la punción con desviación angular respecto al eje longitudinal de la canal." },
+  { "id": "r2",  "cat": "Técnica de punción",       "text": "Distancia desde línea media incorrecta: la separación entre la línea media de la canal y el punto de ingreso del equipo es incorrecta." },
+  { "id": "r3",  "cat": "Técnica de punción",       "text": "Medición en altura diferente a la punción de referencia: el equipo se inclina o desplaza respecto a la altura de la punción inicial." },
+  { "id": "r4",  "cat": "Técnica de punción",       "text": "Errores en identificación anatómica: el operario confunde la costilla verdadera con la costilla falsa." },
+  { "id": "r5",  "cat": "Equipo de medición",       "text": "Deficiencias en conservación del equipo: mal manejo, almacenamiento inadecuado o humedad interna detectada." },
+  { "id": "r6",  "cat": "Equipo de medición",       "text": "Limpieza deficiente del equipo: acumulación de grasa en pin u otros residuos en componentes críticos al finalizar la jornada." },
+  { "id": "r7",  "cat": "Equipo de medición",       "text": "Calibrador patrón ausente o en mal estado: no se dispone del calibrador patrón para la verificación de mediciones." },
+  { "id": "r8",  "cat": "Equipo de medición",       "text": "Fallas recurrentes o deterioro prematuro: el equipo presenta fallas frecuentes que afectan la continuidad del proceso." },
+  { "id": "r9",  "cat": "Personal y capacitación",  "text": "Falta de formación técnica específica: el operario asignado no cuenta con capacitación adecuada en el procedimiento o en el uso del equipo." },
+  { "id": "r10", "cat": "Personal y capacitación",  "text": "Alta rotación de personal: se evidencian cambios frecuentes del operario responsable, afectando la estandarización." },
+  { "id": "r11", "cat": "Personal y capacitación",  "text": "Sin operario suplente capacitado: no existe un plan de contingencia para cubrir ausencias del operario principal." },
+  { "id": "r12", "cat": "Trazabilidad y control",   "text": "Sin registro de responsable por jornada: no se lleva trazabilidad del operario que realiza la medición en cada turno." },
+  { "id": "r13", "cat": "Trazabilidad y control",   "text": "Omisión de mediciones: no se mide el 100% de las canales; se detectan unidades sin procesar durante la jornada." },
+  { "id": "r14", "cat": "Trazabilidad y control",   "text": "Pérdida de datos: se registran datos faltantes o fallos en el guardado de información de canales ya procesadas." },
+  { "id": "r15", "cat": "Protocolo y señalización", "text": "Deficiencias en el hablador: la instrucción visual es incompleta o ausente, careciendo de la información necesaria para guiar al operario en el puesto de trabajo." }
+]
