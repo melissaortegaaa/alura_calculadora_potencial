@@ -551,50 +551,28 @@ function ReportView({ data, onBack }) {
 
         {/* CONCLUSIONES — bloque independiente con peso visual */}
         <div style={{ background: SandBorder, borderRadius: 14, overflow: "hidden", marginBottom: 20, border: `1px solid ${SandBorder}` }}>
-          <div className="rpt-concl">
-            <div style={{ padding: "28px 32px" }}>
-              <div style={{ fontFamily: "'Nunito',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: Muted, marginBottom: 8 }}>Auditoría de medición de magro · Conclusiones</div>
-              <div style={{ fontFamily: "'Nunito',sans-serif", fontSize: 18, fontWeight: 700, color: Ink, marginBottom: 14, lineHeight: 1.2 }}>Conclusión general</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {form.conclusiones
-                  ? <p style={{ fontSize: 13, color: Ink, lineHeight: 1.75 }}>{form.conclusiones}</p>
-                  : selectedConcls.length > 0
-                    ? selectedConcls.map(c => <p key={c.id} style={{ fontSize: 13, color: Ink, lineHeight: 1.75 }}>{c.text}</p>)
-                    : <>
-                        <p style={{ fontSize: 13, color: Ink, lineHeight: 1.75 }}>
-                          {`El resultado de la auditoría evidencia un cumplimiento general del ${totalPct}%.`}
-                        </p>
-                        {desviaciones > 0 && <p style={{ fontSize: 13, color: Ink, lineHeight: 1.75 }}>
-                          {`Se identificaron desviaciones en ${desvPct}% de las canales (clasificadas M o I), las cuales pueden afectar la precisión y consistencia de los datos entregados al cliente.`}
-                        </p>}
-                        <p style={{ fontSize: 13, color: Ink, lineHeight: 1.75 }}>
-                          {equipTotal >= 16
-                            ? "El equipo se encuentra operativo y con mantenimiento vigente. Se recomienda fortalecer la técnica operativa y estandarizar el proceso para garantizar datos confiables."
-                            : "Se recomienda revisión técnica del equipo, fortalecer el mantenimiento preventivo y la formación del operario responsable de la medición."}
-                        </p>
-                      </>
-                }
-              </div>
-              {/* Firma */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginTop: 28 }}>
-                {[["Auditor responsable", form.responsable], ["Responsable planta", form.responsablePlanta]].map(([lbl, val]) => (
-                  <div key={lbl}>
-                    <div style={{ borderTop: `1px solid rgba(0,0,0,0.15)`, paddingTop: 8 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: Ink, minHeight: 18 }}>{val || ""}</div>
-                      <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: Muted, marginTop: 3 }}>{lbl}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            {/* Score badge lateral */}
-            <div style={{ padding: "28px 24px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, borderLeft: `1px solid rgba(0,0,0,0.1)`, background: White, minWidth: 160 }}>
-              <div style={{ fontFamily: "'Nunito',sans-serif", fontSize: 52, fontWeight: 700, color: overallSt.color, lineHeight: 1 }}>{totalPct}%</div>
-              <div style={{ fontFamily: "'Nunito',sans-serif", fontSize: 22, fontWeight: 700, color: Muted, lineHeight: 1 }}>{totalScore}/100</div>
-              <div style={{ marginTop: 6, background: overallSt.bg, border: `1px solid ${overallSt.color}55`, borderRadius: 20, padding: "4px 14px" }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: overallSt.color, letterSpacing: "0.08em", textTransform: "uppercase" }}>{overallSt.label}</span>
-              </div>
-              <div style={{ fontSize: 10, color: Muted, marginTop: 4, textAlign: "center", lineHeight: 1.5 }}>Puntaje final<br />de la auditoría</div>
+          <div style={{ padding: "28px 32px" }}>
+            <div style={{ fontFamily: "'Nunito',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: Muted, marginBottom: 8 }}>Auditoría de medición de magro · Conclusiones</div>
+            <div style={{ fontFamily: "'Nunito',sans-serif", fontSize: 18, fontWeight: 700, color: Ink, marginBottom: 14, lineHeight: 1.2 }}>Conclusión general</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {form.conclusiones
+                ? <p style={{ fontSize: 13, color: Ink, lineHeight: 1.75 }}>{form.conclusiones}</p>
+                : selectedConcls.length > 0
+                  ? selectedConcls.map(c => <p key={c.id} style={{ fontSize: 13, color: Ink, lineHeight: 1.75 }}>{c.text}</p>)
+                  : <>
+                      <p style={{ fontSize: 13, color: Ink, lineHeight: 1.75 }}>
+                        {`El resultado de la auditoría evidencia un cumplimiento general del ${totalPct}%.`}
+                      </p>
+                      {desviaciones > 0 && <p style={{ fontSize: 13, color: Ink, lineHeight: 1.75 }}>
+                        {`Se identificaron desviaciones en ${desvPct}% de las canales (clasificadas M o I), las cuales pueden afectar la precisión y consistencia de los datos entregados al cliente.`}
+                      </p>}
+                      <p style={{ fontSize: 13, color: Ink, lineHeight: 1.75 }}>
+                        {equipTotal >= 16
+                          ? "El equipo se encuentra operativo y con mantenimiento vigente. Se recomienda fortalecer la técnica operativa y estandarizar el proceso para garantizar datos confiables."
+                          : "Se recomienda revisión técnica del equipo, fortalecer el mantenimiento preventivo y la formación del operario responsable de la medición."}
+                      </p>
+                    </>
+              }
             </div>
           </div>
         </div>
