@@ -83,7 +83,7 @@ const EQUIP_INTRO = [
   { item: "¿Se está realizando limpieza del equipo al final de la faena?", pond: 1 },
   { item: "¿Se realiza limpieza en el transcurso de la faena?", pond: 1 },
 ];
-const EQUIP_TABLES = { GP4: EQUIP_GP, GP7: EQUIP_GP, Introscopio: EQUIP_INTRO };
+const EQUIP_TABLES = { GP4: EQUIP_GP, GP7: EQUIP_GP, Optigrade: EQUIP_GP, Introscopio: EQUIP_INTRO };
 
 const RECS_LIBRARY = [
   { id: "r1",  cat: "Técnica de punción",       text: "Ángulo de punción no perpendicular: el operario realiza la punción con desviación angular respecto al eje longitudinal de la canal." },
@@ -879,14 +879,11 @@ export default function AccuremaxApp() {
             </SectionCard>
 
             {/* 06 RECOMENDACIONES */}
-            <SectionCard number="06" title="Recomendaciones" subtitle={`Selecciona de 1 a 4 · ${selectedRecs.length} seleccionada(s)`}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: selectedRecs.length >= 4 ? BLight : Sand, border: `1px solid ${selectedRecs.length >= 4 ? "#e8c8c8" : SandBorder}` }}>
-                <span style={{ fontSize: 12, color: selectedRecs.length >= 4 ? B : Muted, fontWeight: 500 }}>
-                  {selectedRecs.length === 0 ? "Selecciona entre 1 y 4 recomendaciones." : selectedRecs.length >= 4 ? "Límite de 4 recomendaciones alcanzado." : `${selectedRecs.length} de 4 seleccionada(s).`}
+            <SectionCard number="06" title="Recomendaciones" subtitle={`${selectedRecs.length} seleccionada(s)`}>
+              <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: Sand, border: `1px solid ${SandBorder}` }}>
+                <span style={{ fontSize: 12, color: Muted, fontWeight: 500 }}>
+                  {selectedRecs.length === 0 ? "Selecciona las recomendaciones aplicables." : `${selectedRecs.length} recomendación(es) seleccionada(s).`}
                 </span>
-                <div style={{ display: "flex", gap: 4 }}>
-                  {[1, 2, 3, 4].map(n => <div key={n} style={{ width: 8, height: 8, borderRadius: "50%", background: selectedRecs.length >= n ? B : SandBorder, transition: "background .2s" }} />)}
-                </div>
               </div>
               {recCats.map(cat => (
                 <div key={cat} style={{ marginBottom: 18 }}>
@@ -894,10 +891,9 @@ export default function AccuremaxApp() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {RECS_LIBRARY.filter(r => r.cat === cat).map(r => {
                       const isSelected = !!recs[r.id];
-                      const isDisabled = !isSelected && selectedRecs.length >= 4;
                       return (
-                        <div key={r.id} onClick={() => !isDisabled && toggleRec(r.id)}
-                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${isSelected ? B : SandBorder}`, background: isSelected ? BLight : White, cursor: isDisabled ? "not-allowed" : "pointer", opacity: isDisabled ? 0.4 : 1, transition: "all .15s" }}>
+                        <div key={r.id} onClick={() => toggleRec(r.id)}
+                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${isSelected ? B : SandBorder}`, background: isSelected ? BLight : White, cursor: "pointer", transition: "all .15s" }}>
                           <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${isSelected ? B : SandBorder}`, background: isSelected ? B : White, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                             {isSelected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1 4 4 7 9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                           </div>
@@ -932,12 +928,6 @@ export default function AccuremaxApp() {
                     onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")} onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}>
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
                     <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700 }}>Exportar datos</div><div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>Excel · todos los campos</div></div>
-                  </button>
-                  <button onClick={() => showToast("Borrador guardado", "info")}
-                    style={{ padding: "20px 12px", borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1.5px solid rgba(255,255,255,0.25)", color: White, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, transition: "background .15s" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")} onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}>
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
-                    <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700 }}>Guardar borrador</div><div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>Continuar después</div></div>
                   </button>
                   <button onClick={() => setView("report")}
                     style={{ padding: "20px 12px", borderRadius: 10, background: White, border: `1.5px solid ${White}`, color: B, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, transition: "background .15s" }}
