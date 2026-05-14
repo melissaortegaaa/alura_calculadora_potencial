@@ -104,31 +104,15 @@ const EQUIP_INTRO = [
 ];
 const EQUIP_TABLES = { GP4: EQUIP_GP, GP7: EQUIP_GP, Optigrade: EQUIP_GP, Introscopio: EQUIP_INTRO };
 
-const RECS_LIBRARY = [
-  { id: "r1",  cat: "Técnica de punción",       text: "Ángulo de punción no perpendicular: el operario realiza la punción con desviación angular respecto al eje longitudinal de la canal." },
-  { id: "r2",  cat: "Técnica de punción",       text: "Distancia desde línea media incorrecta: la separación entre la línea media de la canal y el punto de ingreso del equipo es incorrecta." },
-  { id: "r3",  cat: "Técnica de punción",       text: "Medición en altura diferente a la punción de referencia: el equipo se inclina o desplaza respecto a la altura de la punción inicial." },
-  { id: "r4",  cat: "Técnica de punción",       text: "Errores en identificación anatómica: el operario confunde la costilla verdadera con la costilla falsa." },
-  { id: "r5",  cat: "Equipo de medición",       text: "Deficiencias en conservación del equipo: mal manejo, almacenamiento inadecuado o humedad interna detectada." },
-  { id: "r6",  cat: "Equipo de medición",       text: "Limpieza deficiente del equipo: acumulación de grasa en pin u otros residuos en componentes críticos al finalizar la jornada." },
-  { id: "r7",  cat: "Equipo de medición",       text: "Calibrador patrón ausente o en mal estado: no se dispone del calibrador patrón para la verificación de mediciones." },
-  { id: "r8",  cat: "Equipo de medición",       text: "Fallas recurrentes o deterioro prematuro: el equipo presenta fallas frecuentes que afectan la continuidad del proceso." },
-  { id: "r9",  cat: "Personal y capacitación",  text: "Falta de formación técnica específica: el operario asignado no cuenta con capacitación adecuada en el procedimiento o en el uso del equipo." },
-  { id: "r10", cat: "Personal y capacitación",  text: "Alta rotación de personal: se evidencian cambios frecuentes del operario responsable, afectando la estandarización." },
-  { id: "r11", cat: "Personal y capacitación",  text: "Sin operario suplente capacitado: no existe un plan de contingencia para cubrir ausencias del operario principal." },
-  { id: "r12", cat: "Trazabilidad y control",   text: "Sin registro de responsable por jornada: no se lleva trazabilidad del operario que realiza la medición en cada turno." },
-  { id: "r13", cat: "Trazabilidad y control",   text: "Omisión de mediciones: no se mide el 100% de las canales; se detectan unidades sin procesar durante la jornada." },
-  { id: "r14", cat: "Trazabilidad y control",   text: "Pérdida de datos: se registran datos faltantes o fallos en el guardado de información de canales ya procesadas." },
-  { id: "r15", cat: "Protocolo y señalización", text: "Deficiencias en el \"hablador\": la instrucción visual es incompleta o ausente, careciendo de la información necesaria para guiar al operario en el puesto de trabajo." },
-];
-
-const PHOTO_LABELS = [
-  "Imagen 1. Identificación del punto anatómico del espacio intercostal.",
-  "Imagen 2. Punzón de inclinación, punto anatómico mal identificado.",
-];
 
 const CANAL_COLORS = { B: Green, R: "#C9973E", M: B, I: "#888780" };
 const CANAL_LABELS = { B: "Buena", R: "Regular", M: "Mala", I: "Insuficiente" };
+
+const EQ_OPTIONS = [
+  { value: 0,  label: "0 – Incumplimiento",          desc: "La fórmula no ha sido actualizada según los estándares vigentes.",                                                                                      color: "#993935", bg: "#f5eaea" },
+  { value: 10, label: "10 – Implementación Parcial",  desc: "La fórmula está actualizada, pero existe una pérdida de trazabilidad en el flujo de la información.",                                                  color: "#854F0B", bg: "#faeeda" },
+  { value: 20, label: "20 – Implementación Integral", desc: "La fórmula está actualizada y se mantiene una trazabilidad completa y precisa de toda la información.", color: "#2E7D52", bg: "#d4eddf" },
+];
 
 function scoreSt(score, max) {
   const p = max > 0 ? (score / max) * 100 : 0;
@@ -146,19 +130,6 @@ function scoreColor(score, max) {
 }
 
 // ── REPORT VIEW ────────────────────────────────────────────────────────────
-// ── DEMO DATA ─────────────────────────────────────────────────────────────
-const DEMO = {
-  form: { planta: "", fecha: new Date().toISOString().split("T")[0], responsable: "", responsablePlanta: "", operario: "", equipo: "GP4", canalesTotal: "", canalesInclinadas: "", canalObs: "", observaciones: "" },
-  canalCounts: { B: 0, R: 0, M: 0, I: 0 },
-  equipScores: {},
-  equipObs: "",
-  eqScore: "",
-  eqObs: "",
-  selectedRecs: [],
-  customRec: "",
-  photos: [null, null],
-  photoLabels: ["", ""],
-};
 
 // ── RADIAL GAUGE (SVG) ────────────────────────────────────────────────────
 function RadialGauge({ pct, size = 140, color, label }) {
@@ -206,9 +177,7 @@ function DashSec({ title, tag }) {
 
 
 function ReportView({ data, onBack }) {
-  const totalCanalReal = Object.values(data.canalCounts).reduce((a, b) => a + b, 0);
-  const hasRealData = !!(data.form.planta || totalCanalReal > 0 || data.eqScore !== "" || Object.keys(data.equipScores).length > 0);
-  const merged = hasRealData ? data : { ...data, ...DEMO, form: { ...DEMO.form, ...Object.fromEntries(Object.entries(data.form).filter(([,v]) => v)) } };
+  const merged = data;
   const { form, equipScores, equipObs, eqScore, eqObs, photos, selectedRecs, customRec, canalCounts, equipRows, selectedConcls = [], photoLabels = ["", ""] } = merged;
 
   const equipTotal = equipRows.reduce((acc, row, i) => {
@@ -246,6 +215,7 @@ function ReportView({ data, onBack }) {
   ];
 
   const infoFields = [
+    ["Fecha de elaboración", new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })],
     ["Fecha de auditoría", form.fecha || "—"],
     ["Planta", form.planta || "—"],
     ["Metodología", form.equipo || "—"],
@@ -306,14 +276,6 @@ function ReportView({ data, onBack }) {
       {/* TOP BAR */}
       <div style={{ background: White, borderBottom: `1px solid ${SandBorder}`, padding: "11px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={onBack}
-            style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: `1px solid ${SandBorder}`, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, color: Muted, cursor: "pointer" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = B; e.currentTarget.style.color = B; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = SandBorder; e.currentTarget.style.color = Muted; }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
-            Volver
-          </button>
-          <div style={{ width: 1, height: 22, background: SandBorder }} />
           <div>
             <div style={{ fontFamily: "'Nunito',sans-serif", fontSize: 15, fontWeight: 700, color: Ink }}>Informe de auditoría — Magro en canales porcinas</div>
             <div style={{ fontSize: 11, color: Muted }}>Generado: {new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}</div>
@@ -468,11 +430,11 @@ function ReportView({ data, onBack }) {
                   <div style={{ fontSize: 10, color: scoreSt(eqNum,20).color, lineHeight: 1.4 }}>de 20 pts<br/><strong>{Math.round((eqNum/20)*100)}%</strong></div>
                 </div>
                 <p style={{ fontSize: 12, color: Ink, lineHeight: 1.7 }}>
-                  {eqObs
-                    ? eqObs
-                    : eqNum >= 15
-                      ? "Se verificaron los resultados de magro, la ecuación aplicada corresponde a la versión vigente 2023. Esta se encuentra implementada de manera consistente y sin desviaciones."
-                      : "Se verificaron los resultados de magro, la ecuación aplicada corresponde a la versión vigente 2023. Esta no se encuentra implementada de manera consistente y sin desviaciones."}
+                  {eqObs || (eqNum === 20
+                    ? "Se verificaron los resultados de magro, la ecuación aplicada corresponde a la versión vigente 2023. Esta se encuentra implementada de manera consistente y sin desviaciones."
+                    : eqNum === 10
+                      ? "Se verificaron los resultados de magro, la ecuación aplicada corresponde a la versión vigente 2023. Esta no se encuentra implementada de manera consistente y sin desviaciones."
+                      : "Se verificaron los resultados de magro. La fórmula no ha sido actualizada según los estándares vigentes.")}
                 </p>
               </>
             ) : <div style={{ padding: "24px 0", textAlign: "center", color: Muted, fontSize: 12, fontStyle: "italic" }}>Sin puntuación registrada</div>}
@@ -490,7 +452,9 @@ function ReportView({ data, onBack }) {
               <div style={{ fontFamily: "'Nunito',sans-serif", fontSize: 22, fontWeight: 700, color: scoreSt(equipTotal,20).color, lineHeight: 1 }}>{equipTotal}</div>
               <div style={{ fontSize: 10, color: scoreSt(equipTotal,20).color, lineHeight: 1.4 }}>de 20 pts<br/><strong>{Math.round((equipTotal/20)*100)}%</strong></div>
             </div>
-            <p style={{ fontSize: 12, color: Ink, lineHeight: 1.7 }}>{equipObs || (equipTotal >= 16 ? "El equipo se encuentra en condiciones adecuadas de funcionamiento. Se evidencia buen mantenimiento y limpieza, lo que contribuye a la confiabilidad de los resultados." : "El equipo presenta condiciones de mantenimiento deficientes. Se recomienda realizar revisión técnica, limpieza profunda y establecer un plan de mantenimiento preventivo.")}</p>
+            {equipObs
+              ? <p style={{ fontSize: 12, color: Ink, lineHeight: 1.7 }}>{equipObs}</p>
+              : <p style={{ fontSize: 12, color: "#8B8B8D", lineHeight: 1.7, fontStyle: "italic" }}>Sin observaciones del equipo registradas.</p>}
           </div>
         </div>
 
@@ -508,7 +472,7 @@ function ReportView({ data, onBack }) {
                   <div style={{ position: "relative", borderRadius: 8, overflow: "hidden", border: `1px solid ${SandBorder}`, marginBottom: 8, aspectRatio: "3/4", background: Sand, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {p ? (
                       <>
-                        <img src={p.url} alt={PHOTO_LABELS[i]} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        <img src={p.url} alt={photoLabels[i]} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                         <div style={{ position: "absolute", top: 8, right: 8, background: B, color: White, fontSize: 8, fontWeight: 700, padding: "2px 8px", borderRadius: 4, letterSpacing: "0.1em" }}>DESVIACIÓN</div>
                       </>
                     ) : (
@@ -599,31 +563,43 @@ function ReportView({ data, onBack }) {
 }
 export default function AccuremaxApp() {
   const [view, setView] = useState("form");
-  const [form, setForm] = useState({
-    planta: "", fecha: new Date().toISOString().split("T")[0],
-    responsable: "", responsablePlanta: "", operario: "",
-    equipo: "GP4", canalesTotal: "", canalesInclinadas: "", canalObs: "", observaciones: "", conclusiones: "",
+  const [form, setForm] = useState(() => {
+    try { const d = JSON.parse(localStorage.getItem("alura_audit_draft") || "{}"); if (d.form) return d.form; } catch {}
+    return { planta: "", fecha: new Date().toISOString().split("T")[0], responsable: "", responsablePlanta: "", operario: "", equipo: "GP4", canalesTotal: "", canalesInclinadas: "", canalObs: "", observaciones: "", conclusiones: "" };
   });
-  const [canalCounts, setCanalCounts] = useState({ B: 0, R: 0, M: 0, I: 0 });
-  const [equipScores, setEquipScores] = useState({});
-  const [equipObs, setEquipObs] = useState("");
-  const [eqScore, setEqScore] = useState("");
-  const [eqObs, setEqObs] = useState("");
+  const [canalCounts, setCanalCounts] = useState(() => { try { const d = JSON.parse(localStorage.getItem("alura_audit_draft")||"{}"); return d.canalCounts||{ B:0,R:0,M:0,I:0 }; } catch { return { B:0,R:0,M:0,I:0 }; } });
+  const [equipScores, setEquipScores] = useState(() => { try { const d = JSON.parse(localStorage.getItem("alura_audit_draft")||"{}"); return d.equipScores||{}; } catch { return {}; } });
+  const [equipObs, setEquipObs] = useState(() => { try { const d = JSON.parse(localStorage.getItem("alura_audit_draft")||"{}"); return d.equipObs||""; } catch { return ""; } });
+  const [eqScore, setEqScore] = useState(() => { try { const d = JSON.parse(localStorage.getItem("alura_audit_draft")||"{}"); return d.eqScore||""; } catch { return ""; } });
+  const [eqObs, setEqObs] = useState(() => { try { const d = JSON.parse(localStorage.getItem("alura_audit_draft")||"{}"); return d.eqObs||""; } catch { return ""; } });
   const [photos, setPhotos] = useState([null, null]);
-  const [photoLabels, setPhotoLabels] = useState(["", ""]);
-  const [recs, setRecs] = useState({});
-  const [customRec, setCustomRec] = useState("");
-  const [concls, setConcls] = useState({});
+  const [photoLabels, setPhotoLabels] = useState(() => { try { const d = JSON.parse(localStorage.getItem("alura_audit_draft")||"{}"); return d.photoLabels||["",""]; } catch { return ["",""]; } });
+  const [recs, setRecs] = useState(() => { try { const d = JSON.parse(localStorage.getItem("alura_audit_draft")||"{}"); return d.recs||{}; } catch { return {}; } });
+  const [customRec, setCustomRec] = useState(() => { try { const d = JSON.parse(localStorage.getItem("alura_audit_draft")||"{}"); return d.customRec||""; } catch { return ""; } });
+  const [concls, setConcls] = useState(() => { try { const d = JSON.parse(localStorage.getItem("alura_audit_draft")||"{}"); return d.concls||{}; } catch { return {}; } });
   const [toast, setToast] = useState(null);
   const [recsOpen, setRecsOpen] = useState(false);
   const [conclsOpen, setConclsOpen] = useState(false);
-  const [recsLibrary, setRecsLibrary] = useState(RECS_LIBRARY);
+  const [recsLibrary, setRecsLibrary] = useState([]);
   const [conclLibrary, setConclLibrary] = useState([]);
 
   useEffect(() => {
     fetch("/recomendaciones.json").then(r => r.json()).then(setRecsLibrary).catch(() => {});
     fetch("/conclusiones.json").then(r => r.json()).then(setConclLibrary).catch(() => {});
   }, []);
+
+  // Auto-calculate canalesTotal from canal counts
+  useEffect(() => {
+    const total = Object.values(canalCounts).reduce((a, b) => a + b, 0);
+    set("canalesTotal", total > 0 ? String(total) : "");
+  }, [canalCounts]);
+
+  // Persist draft to localStorage (excluding photos — objectURLs are not serializable)
+  useEffect(() => {
+    try {
+      localStorage.setItem("alura_audit_draft", JSON.stringify({ form, canalCounts, equipScores, equipObs, eqScore, eqObs, photoLabels, recs, customRec, concls }));
+    } catch {}
+  }, [form, canalCounts, equipScores, equipObs, eqScore, eqObs, photoLabels, recs, customRec, concls]);
 
   const photoRef0 = useRef();
   const photoRef1 = useRef();
@@ -634,8 +610,8 @@ export default function AccuremaxApp() {
   const toggleConcl = id => setConcls(c => ({ ...c, [id]: !c[id] }));
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
-  const handlePhoto = (idx, e) => { const f = e.target.files[0]; if (!f) return; setPhotos(p => { const n = [...p]; n[idx] = { name: f.name, url: URL.createObjectURL(f) }; return n; }); };
-  const removePhoto = idx => setPhotos(p => { const n = [...p]; n[idx] = null; return n; });
+  const handlePhoto = (idx, e) => { const f = e.target.files[0]; if (!f) return; setPhotos(p => { const n = [...p]; if (n[idx]) URL.revokeObjectURL(n[idx].url); n[idx] = { name: f.name, url: URL.createObjectURL(f) }; return n; }); };
+  const removePhoto = idx => setPhotos(p => { const n = [...p]; if (n[idx]) URL.revokeObjectURL(n[idx].url); n[idx] = null; return n; });
 
   const equipRows = EQUIP_TABLES[form.equipo] || EQUIP_GP;
   const equipTotal = equipRows.reduce((acc, row, i) => {
@@ -646,7 +622,7 @@ export default function AccuremaxApp() {
   }, 0);
   const equipAnswered = Object.keys(equipScores).length;
   const eqNum = Number(eqScore);
-  const eqColor = eqNum >= 15 ? Green : eqNum >= 8 ? Amber : eqNum > 0 ? B : Muted;
+  const eqColor = eqNum === 20 ? Green : eqNum === 10 ? Amber : eqScore !== "" ? B : Muted;
   const selectedRecs = recsLibrary.filter(r => recs[r.id]);
   const recCats = [...new Set(recsLibrary.map(r => r.cat))];
   const selectedConcls = conclLibrary.filter(c => concls[c.id]);
@@ -706,7 +682,7 @@ export default function AccuremaxApp() {
     const recsRows = [
       ["Categoría", "Recomendación"],
       ...selectedRecs.map(r => {
-        const lib = RECS_LIBRARY.find(x => x.id === r.id);
+        const lib = recsLibrary.find(x => x.id === r.id);
         return [lib ? lib.cat : "Personalizada", r.text];
       }),
       ...(customRec ? [["Personalizada", customRec]] : []),
@@ -797,8 +773,10 @@ export default function AccuremaxApp() {
                   </Sel>
                 </div>
                 <div>
-                  <Label>N.° canales auditadas</Label>
-                  <Input type="text" inputMode="numeric" placeholder="Ej. 240" value={form.canalesTotal} onChange={e => set("canalesTotal", e.target.value.replace(/[^0-9]/g, ""))} />
+                  <Label>N.° canales auditadas <span style={{ fontWeight: 400, textTransform: "none", fontSize: 9, color: "#2E7D52" }}>· calculado automáticamente</span></Label>
+                  <div style={{ height: 38, display: "flex", alignItems: "center", padding: "0 12px", background: form.canalesTotal ? "#d4eddf" : "#F5F2EE", border: "1px solid #E2D9D0", borderRadius: 8, fontFamily: "'Nunito',sans-serif", fontSize: 18, fontWeight: 700, color: form.canalesTotal ? "#2E7D52" : "#8B8B8D" }}>
+                    {form.canalesTotal || "—"}
+                  </div>
                 </div>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <Label>Observaciones generales</Label>
@@ -925,29 +903,26 @@ export default function AccuremaxApp() {
             </SectionCard>
 
             {/* 04 ECUACIÓN */}
-            <SectionCard number="04" title="Verificación de la ecuación" subtitle="Puntuación cualitativa 0 – 20">
-              <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 20, alignItems: "start" }}>
-                <div>
-                  <Label>Puntuación (0 a 20)</Label>
-                  <Sel value={eqScore} onChange={e => setEqScore(e.target.value)}>
-                    <option value="">— Selecciona —</option>
-                    {Array.from({ length: 21 }, (_, i) => <option key={i} value={i}>{i}</option>)}
-                  </Sel>
-                  {eqScore !== "" && (
-                    <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 8, background: eqNum >= 15 ? GreenLight : eqNum >= 8 ? AmberLight : BLight, border: `1px solid ${eqNum >= 15 ? "#b8dcc8" : eqNum >= 8 ? "#e8d5a0" : "#e8c8c8"}` }}>
-                      <div style={{ fontFamily: "'Nunito',sans-serif", fontSize: 30, fontWeight: 700, color: eqColor, lineHeight: 1 }}>{eqScore}</div>
+            <SectionCard number="04" title="Verificación de la ecuación" subtitle="Selecciona el nivel de implementación">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                {EQ_OPTIONS.map(opt => {
+                  const isSel = eqScore === String(opt.value);
+                  return (
+                    <div key={opt.value} onClick={() => setEqScore(String(opt.value))}
+                      style={{ display: "flex", gap: 14, padding: "13px 16px", borderRadius: 10, border: `2px solid ${isSel ? opt.color : SandBorder}`, background: isSel ? opt.bg : White, cursor: "pointer", transition: "all .15s", alignItems: "flex-start" }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 8, background: isSel ? opt.color : Sand, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <span style={{ fontFamily: "'Nunito',sans-serif", fontSize: 16, fontWeight: 700, color: isSel ? White : Muted }}>{opt.value}</span>
+                      </div>
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: eqColor }}>{eqNum >= 15 ? "Ecuación correcta" : eqNum >= 8 ? "Revisión recomendada" : "Desviación identificada"}</div>
-                        <div style={{ fontSize: 10, color: Muted, marginTop: 1 }}>sobre 20 puntos</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: isSel ? opt.color : Ink, marginBottom: 3 }}>{opt.label}</div>
+                        <div style={{ fontSize: 12, color: Muted, lineHeight: 1.5 }}>{opt.desc}</div>
                       </div>
                     </div>
-                  )}
-                </div>
-                <div>
-                  <Label>Observaciones</Label>
-                  <Textarea placeholder="¿Se está usando la ecuación vigente? ¿Hay inconsistencias en el cálculo?" value={eqObs} onChange={e => setEqObs(e.target.value)} style={{ minHeight: 90 }} />
-                </div>
+                  );
+                })}
               </div>
+              <Label>Observaciones</Label>
+              <Textarea placeholder="Contexto adicional sobre la implementación de la ecuación…" value={eqObs} onChange={e => setEqObs(e.target.value)} style={{ minHeight: 72 }} />
             </SectionCard>
 
             {/* 05 FOTOS */}
