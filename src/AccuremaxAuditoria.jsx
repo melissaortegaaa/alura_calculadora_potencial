@@ -505,7 +505,6 @@ function ReportView({ data, onBack }) {
                     {p ? (
                       <>
                         <img src={p.url} alt={photoLabels[i]} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                        <div style={{ position: "absolute", top: 8, right: 8, background: B, color: White, fontSize: 8, fontWeight: 700, padding: "2px 8px", borderRadius: 4, letterSpacing: "0.1em" }}>DESVIACIÓN</div>
                       </>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
