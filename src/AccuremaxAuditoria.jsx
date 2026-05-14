@@ -419,12 +419,21 @@ function ReportView({ data, onBack }) {
                   <div style={{ fontFamily: "'Nunito',sans-serif", fontSize: 22, fontWeight: 700, color: scoreSt(eqNum,20).color, lineHeight: 1 }}>{eqScore}</div>
                   <div style={{ fontSize: 10, color: scoreSt(eqNum,20).color, lineHeight: 1.4 }}>de 20 pts<br/><strong>{Math.round((eqNum/20)*100)}%</strong></div>
                 </div>
-                <p style={{ fontSize: 12, color: Ink, lineHeight: 1.7, marginBottom: 8 }}>
-                  {eqNum >= 15 ? "Se verificaron los resultados de magro registrados en el sistema, constatando que la ecuación aplicada corresponde a la versión vigente establecida para el año 2023." : "Al verificar los resultados de magro, se identificó que la ecuación aplicada no corresponde a la versión vigente para el año 2023. Se evidenciaron desviaciones en su implementación."}
-                </p>
-                <p style={{ fontSize: 12, color: Ink, lineHeight: 1.7 }}>
-                  {eqNum >= 15 ? "Esta se encuentra implementada de manera consistente, sin evidenciarse desviaciones en su aplicación." : "Esto genera inconsistencias en los datos reportados. Se recomienda actualización inmediata."}
-                </p>
+                {eqObs
+                  ? <p style={{ fontSize: 12, color: Ink, lineHeight: 1.7 }}>{eqObs}</p>
+                  : <>
+                      <p style={{ fontSize: 12, color: Ink, lineHeight: 1.7, marginBottom: 8 }}>
+                        {eqNum >= 15
+                          ? "Se verificaron los resultados de magro registrados en el sistema, constatando que la ecuación aplicada corresponde a la versión vigente establecida para el año 2023."
+                          : "Al verificar los resultados de magro registrados en el sistema, se identificó que la ecuación aplicada no corresponde a la versión vigente establecida para el año 2023. Se evidenciaron desviaciones en su implementación, lo que genera inconsistencias en los datos reportados."}
+                      </p>
+                      <p style={{ fontSize: 12, color: Ink, lineHeight: 1.7 }}>
+                        {eqNum >= 15
+                          ? "Esta se encuentra implementada de manera consistente, sin evidenciarse desviaciones en su aplicación."
+                          : ""}
+                      </p>
+                    </>
+                }
               </>
             ) : <div style={{ padding: "24px 0", textAlign: "center", color: Muted, fontSize: 12, fontStyle: "italic" }}>Sin puntuación registrada</div>}
           </div>
@@ -512,17 +521,22 @@ function ReportView({ data, onBack }) {
               <span style={{ fontFamily: "'Nunito',sans-serif", fontSize: 14, fontWeight: 700, color: Ink }}>Conclusiones</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>
-                {`El resultado de la auditoría evidencia un cumplimiento general del ${totalPct}%.`}
-              </p>
-              {desviaciones > 0 && <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>
-                {`Se identificaron desviaciones relacionadas con la técnica de medición, la alineación del equipo, acumulación de grasa en el punto de inserción (${desvPct}% de las canales clasificadas M o I), las cuales pueden afectar la precisión y consistencia de los datos entregados al cliente.`}
-              </p>}
-              <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>
-                {equipTotal >= 16
-                  ? "Aunque el equipo se encuentra operativo y con mantenimiento vigente, se recomienda fortalecer la técnica operativa, estandarizar el proceso y asegurar condiciones óptimas del equipo para garantizar datos confiables."
-                  : "Se recomienda revisión técnica del equipo, fortalecer el mantenimiento preventivo y la formación del operario responsable de la medición."}
-              </p>
+              {form.conclusiones
+                ? <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>{form.conclusiones}</p>
+                : <>
+                    <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>
+                      {`El resultado de la auditoría evidencia un cumplimiento general del ${totalPct}%.`}
+                    </p>
+                    {desviaciones > 0 && <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>
+                      {`Se identificaron desviaciones relacionadas con la técnica de medición, la alineación del equipo, acumulación de grasa en el punto de inserción (${desvPct}% de las canales clasificadas M o I), las cuales pueden afectar la precisión y consistencia de los datos entregados al cliente.`}
+                    </p>}
+                    <p style={{ fontSize: 12, color: Ink, lineHeight: 1.75 }}>
+                      {equipTotal >= 16
+                        ? "Aunque el equipo se encuentra operativo y con mantenimiento vigente, se recomienda fortalecer la técnica operativa, estandarizar el proceso y asegurar condiciones óptimas del equipo para garantizar datos confiables."
+                        : "Se recomienda revisión técnica del equipo, fortalecer el mantenimiento preventivo y la formación del operario responsable de la medición."}
+                    </p>
+                  </>
+              }
               <div style={{ marginTop: 4, padding: "10px 14px", background: overallSt.bg, borderRadius: 8, border: `1px solid ${overallSt.color}33`, display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ fontFamily: "'Nunito',sans-serif", fontSize: 26, fontWeight: 700, color: overallSt.color, lineHeight: 1 }}>{totalScore}/100</div>
                 <div>
@@ -547,7 +561,7 @@ export default function AccuremaxApp() {
   const [form, setForm] = useState({
     planta: "", fecha: new Date().toISOString().split("T")[0],
     responsable: "", responsablePlanta: "", operario: "",
-    equipo: "GP4", canalesTotal: "", canalesInclinadas: "", canalObs: "", observaciones: "",
+    equipo: "GP4", canalesTotal: "", canalesInclinadas: "", canalObs: "", observaciones: "", conclusiones: "",
   });
   const [canalCounts, setCanalCounts] = useState({ B: 0, R: 0, M: 0, I: 0 });
   const [equipScores, setEquipScores] = useState({});
@@ -908,6 +922,16 @@ export default function AccuremaxApp() {
                 <Label>Recomendación personalizada</Label>
                 <Textarea placeholder="Escribe una recomendación específica para esta planta…" value={customRec} onChange={e => setCustomRec(e.target.value)} style={{ minHeight: 60 }} />
               </div>
+            </SectionCard>
+
+            {/* 06b CONCLUSIONES */}
+            <SectionCard number="06b" title="Conclusiones" subtitle="Opcional · Si se llena, reemplaza el texto automático en el informe">
+              <Textarea
+                placeholder="Escribe las conclusiones de la auditoría. Si se deja vacío, el informe generará un texto automático basado en los resultados."
+                value={form.conclusiones}
+                onChange={e => set("conclusiones", e.target.value)}
+                style={{ minHeight: 100 }}
+              />
             </SectionCard>
 
             {/* 07 ACCIONES */}
